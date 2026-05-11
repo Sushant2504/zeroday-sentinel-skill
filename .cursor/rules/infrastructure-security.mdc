@@ -1,0 +1,57 @@
+---
+description: "Infrastructure-as-code security rules — Terraform IAM, network exposure, encryption, S3 bucket security, state management, ArgoCD, and Helm chart security."
+globs: ["**/*.tf", "**/*.tfvars", "**/*.hcl", "**/terraform/**", "**/argocd/**", "**/helm/**", "**/charts/**", "**/Chart.yaml", "**/values.yaml", "**/values.*.yaml"]
+---
+
+# Infrastructure & IaC Security
+
+## Terraform IAM
+
+- **Never** use `"Action": "*"` or `"Resource": "*"` — scope to specific actions and ARNs
+- **Never** use `"Principal": "*"` — restrict to specific accounts/roles
+- Add `Condition` blocks to assume role policies
+- Restrict `iam:PassRole` to specific role ARNs
+- Use managed policies over inline for auditability
+
+## Network Exposure
+
+- **Never** open port 22 (SSH) or 3389 (RDP) to `0.0.0.0/0` — use SSM Session Manager or bastion
+- Restrict ingress `0.0.0.0/0` to ports 443/80 only
+- Use VPC endpoints for S3/DynamoDB access
+- Place internal workloads in private subnets
+
+## Encryption
+
+- Enable encryption on all storage: EBS (`encrypted = true`), RDS (`storage_encrypted = true`), S3 (SSE-KMS)
+- Enable KMS key rotation: `enable_key_rotation = true`
+- Enable Elasticache encryption at rest and in transit
+
+## S3 Bucket Security
+
+- Enable `aws_s3_bucket_public_access_block` (all four settings true) at account level
+- **Never** use `acl = "public-read"` — use bucket policies for controlled access
+- Enable access logging and versioning on data buckets
+
+## State & Secrets
+
+- **Never** hardcode secrets in `.tf` files — use `TF_VAR_*` env vars or `data.aws_secretsmanager_secret_version`
+- Enable encryption on remote state: `backend "s3" { encrypt = true }`
+- Mark sensitive outputs: `sensitive = true`
+- Add `*.tfvars` to `.gitignore`
+
+## ArgoCD
+
+- Scope RBAC policies to specific projects — never grant `*` on all resources
+- **Never** put secrets in Application manifests — use SealedSecrets or External Secrets Operator
+- Restrict source repos to organization's Git server
+
+## Helm Charts
+
+- **Never** set default passwords in `values.yaml` — leave empty, require via `--set`
+- Default `image.tag` to specific version, not `latest`
+- Default `securityContext.privileged` to `false`, `runAsNonRoot` to `true`
+- Pin chart dependency versions in `Chart.yaml`, commit `Chart.lock`
+
+## IaC Scanning
+
+Run in CI: `trivy config --severity HIGH,CRITICAL .` or `checkov -d . --framework terraform`

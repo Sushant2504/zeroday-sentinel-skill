@@ -1,0 +1,63 @@
+---
+description: "API security rules — authentication, authorization, input validation, rate limiting, response security, GraphQL, WebSocket, and file upload security for REST and GraphQL APIs."
+globs: ["**/routes/**", "**/controllers/**", "**/handlers/**", "**/middleware/**", "**/api/**", "**/*.resolver.*", "**/graphql/**", "**/schema.graphql", "**/openapi.*", "**/swagger.*"]
+---
+
+# API Security
+
+## Authentication & Authorization
+
+- Apply auth middleware **globally** — explicitly opt-out for public routes (deny-by-default)
+- **Always** verify resource ownership (prevent BOLA/IDOR): check `resource.user_id == current_user.id`
+- Verify role/permissions on **every** privileged endpoint — don't rely on frontend hiding UI elements
+- **Never** accept and apply all request body fields to models (mass assignment) — use explicit field allowlists
+
+## Input Validation
+
+- Validate **every** request body with schemas (Zod, Pydantic, JSON Schema)
+- Validate path params (type, format, range) and query params (sanitize, type-check)
+- Verify `Content-Type` header matches expected format
+- Set request body size limits: `express.json({ limit: '1mb' })` or equivalent
+- Validate file uploads: check MIME type by magic bytes (not extension), enforce size limits, sanitize filenames, store outside webroot
+
+## Rate Limiting (Required)
+
+| Endpoint | Limit |
+|----------|-------|
+| General API | 100 req/15min per IP |
+| Login/auth | 5-10 req/min per IP |
+| Registration | 3-5 req/hour per IP |
+| Password reset | 3-5 req/hour per email |
+
+- Return `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers
+- Rate limit by user ID when authenticated, IP as fallback
+- Use Redis-backed rate limiting for multi-instance deployments
+
+## Response Security
+
+- **Never** return stack traces, SQL errors, or internal paths in API responses
+- Use response DTOs — only return fields the client needs; never return `password`, `internal_id`
+- **Always** paginate list endpoints — set max page size (100), default page size (20)
+- Remove `X-Powered-By` and `Server` version headers
+
+## GraphQL
+
+- Disable introspection in production: `introspection: process.env.NODE_ENV !== 'production'`
+- Limit query depth (5-10 levels) and complexity
+- Limit batch query count (max 10 per request)
+- Add authorization at resolver level, not just query level
+
+## WebSocket
+
+- Authenticate during handshake (token in query or first message)
+- Validate `Origin` header during upgrade
+- Validate and schema-check all incoming messages
+- Rate limit messages per connection (10/second)
+- Limit concurrent connections per IP/user
+
+## File Uploads
+
+- Validate MIME type by magic bytes, not extension
+- Set size limits (e.g., 5MB)
+- **Reject** executable files: `.php`, `.jsp`, `.exe`, `.sh`
+- Serve uploads from a **separate** domain/CDN (prevents XSS via uploaded files)

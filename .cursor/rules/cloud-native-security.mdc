@@ -1,0 +1,63 @@
+---
+description: "Cloud native security rules — AWS, GCP, Azure IAM, serverless functions, managed databases, object storage, container registries, and infrastructure-as-code security for cloud services."
+globs: ["**/*aws*", "**/*gcp*", "**/*azure*", "**/serverless*", "**/lambda/**", "**/functions/**", "**/cdk*", "**/pulumi*", "**/sam*", "**/cloudformation*"]
+---
+
+# Cloud Native Security
+
+## AWS
+
+### IAM
+- **Never** use root account credentials — create IAM users/roles
+- **Never** commit `AKIA*` access keys — use IAM roles with STS temporary credentials
+- Use OIDC federation for CI/CD (GitHub Actions, GitLab CI)
+- Follow least privilege — use IAM Access Analyzer to right-size permissions
+- Require `ExternalId` in cross-account trust policies
+
+### S3
+- Enable Block Public Access at account level
+- Enable SSE-S3 or SSE-KMS encryption
+- Enable access logging and versioning
+- **Never** use `acl: public-read` — use bucket policies for specific access
+
+### Lambda/Serverless
+- Use AWS Secrets Manager or SSM Parameter Store — **never** plaintext env vars for secrets
+- Create function-specific IAM roles with minimum permissions
+- Set reserved concurrency limits (prevent cost explosion from attacks)
+- Validate event schema before processing
+- Place Lambdas in VPC when accessing private resources
+
+### Other Services
+- Enable encryption on SQS, SNS, DynamoDB
+- Set `publicly_accessible: false` on RDS instances
+- Enable AUTH for ElastiCache Redis
+
+## GCP
+
+- **Never** commit service account key JSON files — use Workload Identity Federation
+- Use predefined roles, not `roles/owner` or `roles/editor` on service accounts
+- Set org policy to prevent public Cloud Storage buckets
+- Require authentication on Cloud Functions: `--no-allow-unauthenticated`
+- Enforce SSL on Cloud SQL connections
+- Restrict firewall rules — no `0.0.0.0/0` source ranges
+
+## Azure
+
+- Use Managed Identity — **never** hardcode client secrets
+- Store secrets in Key Vault, reference with `@Microsoft.KeyVault(SecretUri=...)`
+- Disable public access on storage accounts and SQL databases
+- Use Private Link/Private Endpoint for service access
+- Enable diagnostic settings on critical resources
+
+## Container Registries
+
+- Use private registries — enable image scanning (ECR scan on push, GCR Container Analysis)
+- Sign images with cosign — verify in admission controller
+- Add lifecycle policies: keep last N tags, delete untagged after 7 days
+
+## IaC Security (Pulumi/CDK/Terraform)
+
+- Use secret primitives: `pulumi.secret()`, `cdk.SecretValue.secretsManager()`, `data.aws_secretsmanager_secret`
+- Enable state encryption and locking
+- Enforce tagging: `environment`, `team`, `service` at minimum
+- Run drift detection in CI: `terraform plan`

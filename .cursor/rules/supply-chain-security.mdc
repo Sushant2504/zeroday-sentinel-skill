@@ -1,0 +1,61 @@
+---
+description: "Supply chain security rules — dependency pinning, new package vetting, typosquatting detection, OpenSSF Scorecard evaluation, bulk dependency change analysis, and automated update configuration."
+globs: ["**/package.json", "**/package-lock.json", "**/yarn.lock", "**/pnpm-lock.yaml", "**/go.mod", "**/go.sum", "**/requirements*.txt", "**/pyproject.toml", "**/Pipfile*", "**/uv.lock", "**/Gemfile*", "**/Cargo.toml", "**/Cargo.lock", "**/pom.xml", "**/build.gradle*", "**/*.csproj", "**/Chart.yaml", "**/Chart.lock", "**/.terraform.lock.hcl", "**/Podfile*", "**/pubspec.*"]
+---
+
+# Supply Chain Security
+
+## Dependency Pinning (Required)
+
+- **npm/yarn:** Use `--save-exact`. Set `save-exact=true` in `.npmrc`. Commit lock files
+- **Python:** Pin with `==` in production requirements. Use `pip-compile` or `uv lock`
+- **Go:** Versions enforced by tooling. Always commit `go.sum`
+- **Docker:** Pin to `image:version@sha256:digest`
+- **GitHub Actions:** Pin to full SHA hash, not tags
+- **Helm:** Pin chart versions in `Chart.yaml`. Commit `Chart.lock`
+
+**Never acceptable:** `:latest`, `*`, `>=`, branch refs (`@main`)
+
+## New Package Vetting
+
+For every **newly added** dependency:
+1. Verify the package name is correct (check for typosquatting)
+2. Check publish date — flag if released within last 7 days
+3. Check OpenSSF Scorecard score — flag if < 5
+4. Search for `"<package>" supply chain attack` — check for known compromises
+5. Verify the source repository is active and maintained
+
+## Typosquatting Detection
+
+Flag as HIGH if a new package name is suspiciously similar to well-known packages:
+- Character substitution: `requets` vs `requests`
+- Hyphen/underscore swap: `python-dateutil` vs `python_dateutil`
+- Scope confusion (npm): `@evil/lodash` vs `lodash`
+- Extra/missing characters: `colorsss` vs `colors`
+
+## Bulk Dependency Changes
+
+If >10 dependencies change in one diff:
+- Flag as HIGH: `Supply Chain - Bulk Dependency Change`
+- Recommend splitting into smaller, reviewable PRs
+- Apply new package checks to ALL changed deps, not just added ones
+- **Exception:** lock file-only regeneration → LOW
+
+## Automated Updates
+
+Set up Dependabot or Renovate for automated dependency updates:
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+```

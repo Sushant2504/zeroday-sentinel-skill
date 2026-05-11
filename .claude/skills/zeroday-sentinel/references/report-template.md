@@ -220,6 +220,25 @@ Expected: {EXPECTED_RESULT}
 - `MCP - Untrusted Endpoint`
 - `MCP - Credential Exposure`
 
+### Critical Workflow Categories
+- `Release - Debug Build in Production`
+- `Release - Test Credentials Shipped`
+- `Release - Missing Signing`
+- `Release - Staged Rollout Gap`
+- `Release - Staging Endpoint in Production`
+- `Merge - Security Check Dropped`
+- `Merge - Lock File Integrity`
+- `Merge - Permissive Config Merged`
+- `Hotfix - CI Bypass`
+- `Hotfix - Missing Review`
+- `Hotfix - Temporary Credentials`
+- `Rollback - No Down Migration`
+- `Rollback - State Incompatibility`
+- `Rollback - Session/Token Break`
+- `Feature Flag - Security Gate`
+- `Feature Flag - Client-Side Evaluation`
+- `Feature Flag - Stale Security Flag`
+
 ### Secret Detection Categories
 - `Secrets - Cloud Credential`
 - `Secrets - API Token`

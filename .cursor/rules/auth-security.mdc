@@ -1,0 +1,60 @@
+---
+description: "Authentication and authorization security rules — password hashing, session management, JWT security, OAuth/OIDC, API keys, MFA, RBAC, and account security."
+globs: ["**/auth/**", "**/login*", "**/session*", "**/jwt*", "**/oauth*", "**/middleware/auth*", "**/passport*", "**/guard*", "**/rbac*", "**/permission*"]
+---
+
+# Authentication & Authorization Security
+
+## Password Security
+
+- **Hash with Argon2id** (preferred), bcrypt (cost ≥ 12), or scrypt — **never** MD5/SHA1/SHA256
+- Minimum 8 characters. Check against breached password lists (HaveIBeenPwned API)
+- **Never** log passwords. **Never** send via GET query parameters
+- Rate limit login: 5 attempts/minute. Lock after 10 failures for 15 minutes
+
+## Session Management
+
+- Use cryptographically random session IDs (128+ bits)
+- **Regenerate** session ID after login (`req.session.regenerate()`)
+- Set absolute timeout (8-24h) and idle timeout (15-60min)
+- **Destroy** server-side session on logout — clear cookie and invalidate refresh tokens
+- **Invalidate all sessions** on password change
+- Use `__Host-` cookie prefix with `Secure; HttpOnly; SameSite=Lax`
+
+## JWT Security
+
+- **Explicitly** set `algorithms: ['RS256']` — never allow `alg: none`
+- Use RS256/ES256 (asymmetric) for distributed systems, not HS256 (shared secret)
+- Set short expiration: access token 15min, refresh token 7-30 days
+- **Always** verify `aud` (audience) and `iss` (issuer) claims
+- Include `jti` claim for revocation support
+- **Never** store JWTs in localStorage — use `HttpOnly` cookies
+- Use 256+ bit keys for HMAC signing
+
+## OAuth 2.0 / OIDC
+
+- **Always** use `state` parameter (CSRF protection) and PKCE (Proof Key for Code Exchange)
+- **Never** expose client secret in frontend code — use PKCE with public client
+- Use **exact** redirect URI matching — no wildcards
+- Use Authorization Code flow, **not** Implicit flow
+- Revoke tokens on logout
+
+## API Key Security
+
+- Send keys in `Authorization` header, **not** URL query parameters
+- Store only the **hash** of API keys in the database
+- Issue scoped keys with minimum permissions
+- Set expiration (90-365 days) and support rotation
+
+## RBAC
+
+- Centralize authorization logic — don't scatter `if (user.role === 'admin')` across codebase
+- Check **permissions**, not roles. Define role→permission mappings in one place
+- Log all role/permission changes (who, what, when)
+- **Never** let users modify their own role — require higher privilege to change roles
+
+## Account Security
+
+- Return **identical** responses for "user not found" vs "wrong password" → prevents enumeration
+- Password reset: use 128-bit random tokens, expire after 1 hour, single-use
+- Always respond "If this email exists, we sent a reset link" — don't reveal if account exists

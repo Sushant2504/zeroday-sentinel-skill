@@ -1,0 +1,65 @@
+---
+description: "Database security rules — SQL/NoSQL injection prevention, parameterized queries, access control, data protection, migration safety, and connection security for PostgreSQL, MySQL, MongoDB, Redis."
+globs: ["**/*.sql", "**/models/**", "**/migrations/**", "**/schema*", "**/db/**", "**/database/**", "**/prisma/**", "**/knex*", "**/sequelize*", "**/typeorm*", "**/drizzle*", "**/*orm*", "**/*query*"]
+---
+
+# Database Security
+
+## SQL Injection Prevention
+
+**Always use parameterized queries — never string interpolation:**
+
+```python
+# Python: cursor.execute("SELECT * FROM t WHERE id = %s", (id,))
+# Node.js: db.query('SELECT * FROM t WHERE id = $1', [id])
+# Go: db.Query("SELECT * FROM t WHERE id = $1", id)
+# Java: stmt = conn.prepareStatement("SELECT * FROM t WHERE id = ?"); stmt.setInt(1, id);
+```
+
+- **Never** use f-strings, `.format()`, `fmt.Sprintf`, or template literals in SQL
+- For dynamic table/column names: use **allowlists**, never user input
+- Escape LIKE wildcards: `value.replace('%', '\\%').replace('_', '\\_')`
+- Use ORM as default data access layer (SQLAlchemy, Prisma, GORM)
+
+## NoSQL Injection
+
+- **MongoDB:** Validate input types — reject objects where strings expected: `if (typeof email !== 'string') throw`
+- **Never** use `$where` with user input
+- Validate all Redis commands — never concatenate user input
+
+## Access Control
+
+- Create **dedicated** application database users — never connect as `postgres`/`root`/`sa`
+- Grant only needed privileges: `GRANT SELECT, INSERT, UPDATE ON specific_tables TO app_user`
+- Use separate database users per service
+- Enable Row-Level Security (RLS) for multi-tenant applications
+- Set `automountServiceAccountToken: false` for pods that don't need DB access
+
+## Data Protection
+
+- Encrypt PII at rest (AES-256-GCM at application level, TDE as additional layer)
+- Mask PII where full values aren't needed: `***-**-1234`, `j***@example.com`
+- Encrypt all database backups
+- **Never** use `SELECT *` in production — list explicit columns
+
+## Query Safety
+
+- **Always** add `LIMIT` to queries — set maximum allowed (e.g., 100)
+- Set `statement_timeout` (30s) to prevent long-running queries
+- Add `WHERE` clause to every `DELETE` and `UPDATE`
+- Use eager loading to prevent N+1 queries
+
+## Connection Security
+
+- Enable TLS: `sslmode=require` (PostgreSQL), `ssl: true` (MySQL)
+- Use environment variables for connection strings — **never** hardcode
+- Set pool limits: `max: 20`, idle timeout: 30s, connection timeout: 5s
+- Add `.gitignore` entry for connection config files
+
+## Migration Safety
+
+- **Always** implement rollback for every migration
+- Review auto-generated migrations before committing
+- **Never** put secret values as column defaults
+- Use parameterized queries even in migration scripts
+- Backup data before destructive migrations (`DROP TABLE`, `DROP COLUMN`)

@@ -724,6 +724,285 @@ function sanitizeCsvValue(value) {
 
 ---
 
+## Critical Workflows
+
+### Playbook: Debug Build Shipped to App Store
+
+**Step 1 — Immediate Fix:**
+1. Immediately halt the rollout (Google Play: pause staged rollout; App Store: remove from sale if possible)
+2. Rebuild with correct release configuration
+3. Verify signing, minification, and debug flags
+
+```kotlin
+// build.gradle.kts — verify release config
+android {
+    buildTypes {
+        release {
+            isDebuggable = false        // MUST be false
+            isMinifyEnabled = true      // MUST be true
+            isShrinkResources = true    // MUST be true
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+}
+```
+
+```bash
+# Verify APK is not debuggable
+aapt dump badging app-release.apk | grep -i "debuggable"
+# Should output nothing (no debuggable flag)
+```
+
+**Step 2 — Verify:**
+```bash
+# Android: verify release APK
+aapt dump badging app-release.apk | grep -c "debuggable" # should be 0
+apksigner verify --print-certs app-release.apk # verify release signing
+
+# iOS: verify archive
+xcodebuild -showBuildSettings -scheme YourApp -configuration Release | grep -i "debug"
+```
+
+**Step 3 — Prevent:**
+```bash
+# Add CI check before upload
+#!/bin/bash
+set -euo pipefail
+if aapt dump badging "$1" | grep -q "debuggable"; then
+  echo "ERROR: Debug build detected. Aborting upload."
+  exit 1
+fi
+if ! grep -q "isMinifyEnabled = true" app/build.gradle.kts; then
+  echo "ERROR: Minification not enabled for release."
+  exit 1
+fi
+```
+
+**Step 4 — Harden:**
+1. Add pre-upload validation in CI pipeline (Fastlane lane or GitHub Actions step)
+2. Use separate build configurations for debug/release with no overlap
+3. Implement app attestation (Play Integrity / App Attest) to detect tampered builds
+4. Add monitoring for unusual debug-related crash patterns in production
+
+---
+
+### Playbook: Merge Conflict Dropped Security Check
+
+**Step 1 — Immediate Fix:**
+1. Identify which security check was lost by comparing against both parent branches
+2. Restore the missing validation/auth/sanitization code
+3. Verify the merged logic is correct end-to-end
+
+```bash
+# Find what was lost: compare merged result against both parents
+git diff HEAD~1...HEAD -- src/middleware/auth.js
+git log --merge -- src/middleware/auth.js
+
+# Compare the merged file against each parent
+git show HEAD~1:src/middleware/auth.js > /tmp/ours.js
+git show MERGE_HEAD:src/middleware/auth.js > /tmp/theirs.js 2>/dev/null
+diff /tmp/ours.js src/middleware/auth.js  # what changed from our version
+```
+
+**Step 2 — Verify:**
+```bash
+# Run auth/security-specific tests
+npm test -- --grep "auth\|security\|permission\|validation"
+
+# Verify auth middleware is applied to all protected routes
+grep -rn "router\.\(get\|post\|put\|delete\)" src/routes/ | grep -v "authMiddleware\|isAuthenticated\|requireAuth"
+```
+Expected: all non-public routes should have auth middleware applied.
+
+**Step 3 — Prevent:**
+- Add CODEOWNERS for security-critical files requiring security team review
+- Add CI check that verifies auth middleware coverage on all routes
+- Use `git rerere` cautiously — never auto-resolve conflicts in auth files
+
+```
+# .github/CODEOWNERS
+/src/middleware/auth* @security-team
+/src/middleware/permission* @security-team
+/src/config/cors* @security-team
+/src/config/csp* @security-team
+```
+
+**Step 4 — Harden:**
+1. Add integration tests that verify auth on every endpoint
+2. Add a "security regression" test suite that runs post-merge
+3. Consider architectural patterns that make auth harder to accidentally remove (global middleware vs per-route)
+
+---
+
+### Playbook: Hotfix Bypassed CI
+
+**Step 1 — Immediate Fix:**
+1. Run the CI pipeline retroactively on the deployed commit
+2. If CI would have failed, assess the severity and decide on immediate rollback vs forward-fix
+3. Document what was skipped and why
+
+```bash
+# Run CI checks retroactively on the deployed commit
+git checkout <hotfix-commit-sha>
+
+# Secret scan
+detect-secrets scan --all-files
+
+# Dependency audit
+npm audit --production
+
+# Tests
+npm test
+
+# SAST
+semgrep --config auto --severity ERROR .
+```
+
+**Step 2 — Verify:**
+```bash
+# Verify the hotfix commit is now on all branches
+git branch --contains <hotfix-commit-sha>
+# Should include: main, develop, and any active release branches
+
+# Verify no secrets were introduced
+git diff <pre-hotfix-sha>..<hotfix-commit-sha> | grep -iE "password|secret|token|api_key" | grep -v "test\|mock\|example"
+```
+
+**Step 3 — Prevent:**
+```yaml
+# Enforce branch protection — no bypass for anyone
+# GitHub repo settings → Branches → Branch protection rules:
+# ✅ Require status checks to pass before merging
+# ✅ Require branches to be up to date
+# ✅ Do not allow bypassing the above settings (even for admins)
+```
+
+- Remove `--no-verify` from any team scripts or aliases
+- Add `[skip ci]` detection to branch protection (block commits with skip markers)
+
+**Step 4 — Harden:**
+1. Create a fast-path CI pipeline for hotfixes (runs essential checks in <5 min)
+2. Require post-deploy retroactive CI run for any emergency bypass
+3. Add incident post-mortem requirement for every CI bypass
+
+---
+
+### Playbook: Stale Feature Flag Gating Security
+
+**Step 1 — Immediate Fix:**
+1. Identify the flag gating security behavior
+2. Make the security code unconditional (remove the flag wrapper)
+3. Clean up the flag from the flag service
+
+```typescript
+// Before: auth gated behind feature flag (DANGEROUS)
+if (featureFlags.isEnabled('new-auth-check')) {
+  requireAuth(req);
+}
+processRequest(req);
+
+// After: auth is unconditional
+requireAuth(req);
+processRequest(req);
+```
+
+**Step 2 — Verify:**
+```bash
+# Search for any remaining references to the removed flag
+grep -rn "new-auth-check" --include="*.ts" --include="*.js" --include="*.py" .
+# Should return 0 results
+
+# Verify auth works without the flag
+curl -X GET http://localhost:3000/protected-endpoint
+# Should return 401 Unauthorized (no auth token)
+
+curl -X GET http://localhost:3000/protected-endpoint -H "Authorization: Bearer valid-token"
+# Should return 200 OK
+```
+
+**Step 3 — Prevent:**
+- Add linting rule to detect feature flags wrapping auth/security code
+- Implement quarterly flag audit — all flags >90 days old must be reviewed
+- Tag security-relevant flags in flag service with `security:true` metadata
+
+```bash
+# CI check: find feature flags gating auth code
+grep -B2 -A2 "featureFlags\.\(isEnabled\|evaluate\|getFlag\)" --include="*.ts" --include="*.js" . | \
+  grep -A4 "auth\|security\|permission\|requireAuth\|isAuthenticated" && \
+  echo "WARNING: Feature flag found near security code — review required"
+```
+
+**Step 4 — Harden:**
+1. Establish policy: security checks must never be behind feature flags
+2. Use separate flag categories — "feature" vs "operational" vs "security" — with different lifecycle rules
+3. Set up automated alerts for feature flags older than 90 days
+
+---
+
+### Playbook: Missing Rollback Path for Migration
+
+**Step 1 — Immediate Fix:**
+1. Write the DOWN/rollback migration for the existing UP migration
+2. Test the rollback in a staging environment
+3. Deploy the rollback migration file
+
+```sql
+-- Example: UP migration added a column
+-- UP: ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+
+-- Write the missing DOWN migration:
+-- DOWN:
+ALTER TABLE users DROP COLUMN IF EXISTS email_verified;
+```
+
+```python
+# Django migration example
+class Migration(migrations.Migration):
+    dependencies = [('users', '0042_add_email_verified')]
+
+    operations = [
+        # Always define reverse operation
+        migrations.RemoveField(
+            model_name='user',
+            name='email_verified',
+        ),
+    ]
+```
+
+**Step 2 — Verify:**
+```bash
+# Run migration forward and backward in staging
+python manage.py migrate users 0042  # forward
+python manage.py migrate users 0041  # rollback
+python manage.py migrate users 0042  # forward again
+
+# Verify data integrity after round-trip
+python manage.py dbshell -c "SELECT count(*) FROM users;"
+```
+
+**Step 3 — Prevent:**
+```bash
+# CI check: ensure every migration has a rollback
+#!/bin/bash
+for migration in migrations/*.sql; do
+  if grep -q "UP\|-- migrate:up" "$migration" && ! grep -q "DOWN\|-- migrate:down" "$migration"; then
+    echo "FAIL: $migration has no DOWN migration"
+    exit 1
+  fi
+done
+
+# Django: check all migrations are reversible
+python manage.py migrate --check --plan | grep -i "irreversible" && echo "FAIL: Irreversible migration found" && exit 1
+```
+
+**Step 4 — Harden:**
+1. For destructive operations (DROP COLUMN, ALTER TYPE), use 3-phase expand-contract pattern
+2. Test full migration chain from scratch in CI (migrate up from empty → migrate all down → migrate all up)
+3. Require staging deployment with rollback test before production migration
+4. Keep backup of pre-migration database state for manual recovery
+
+---
+
 ## Quick Reference: Fix by Category
 
 | Category | Fastest Fix | Tool to Prevent |
@@ -740,3 +1019,8 @@ function sanitizeCsvValue(value) {
 | Overly Permissive IAM | Replace `*` with specific actions | `tfsec`, `checkov`, IAM Access Analyzer |
 | CSV Injection | Prefix cells with `'` | Sanitization in export utility |
 | Missing Security Headers | Use `helmet` (Express) or manual headers | Security header scanner in CI |
+| Debug Build Shipped | Rebuild with release config | CI pre-upload validation script |
+| Merge Conflict Dropped Auth | Restore lost check, review merged logic | CODEOWNERS, post-merge security tests |
+| Hotfix Bypassed CI | Run CI retroactively, assess and fix | Branch protection (no bypass for admins) |
+| Stale Feature Flag on Auth | Remove flag, make auth unconditional | Quarterly flag audit, linting rule |
+| Missing Rollback Migration | Write DOWN migration, test round-trip | CI check for reversible migrations |

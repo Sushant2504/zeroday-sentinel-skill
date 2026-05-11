@@ -1,0 +1,65 @@
+---
+description: "Web application security rules — XSS prevention, CSRF protection, security headers, cookie configuration, CORS, client-side storage, and frontend framework security (React, Vue, Angular)."
+globs: ["**/*.html", "**/*.htm", "**/*.jsx", "**/*.tsx", "**/*.vue", "**/*.svelte", "**/*.css", "**/next.config.*", "**/nuxt.config.*", "**/vite.config.*", "**/webpack.config.*"]
+---
+
+# Web Application Security
+
+## XSS Prevention
+
+- **Never** use `.innerHTML`, `.outerHTML`, or `document.write()` with user data → use `.textContent` or sanitize with DOMPurify
+- **React:** avoid `dangerouslySetInnerHTML` — if required, sanitize: `DOMPurify.sanitize(data)`
+- **Vue:** avoid `v-html` with user data → use `v-text` or sanitize first
+- **Angular:** avoid `bypassSecurityTrust*()` — use built-in sanitization
+- **Never** use `eval()`, `new Function()`, or `setTimeout(string)` → restructure code to avoid dynamic evaluation
+- Validate `href` attributes — reject `javascript:` and `data:` URL schemes
+
+## Security Headers (Required)
+
+Add these to every web application:
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+Express.js: use `helmet()`. Next.js: configure in `next.config.js` headers.
+
+## Cookie Security
+
+All authentication cookies must have:
+- `Secure` — HTTPS only
+- `HttpOnly` — no JavaScript access
+- `SameSite=Lax` or `Strict`
+- `__Host-` prefix for session cookies
+- `Max-Age` ≤ 24 hours for sessions
+
+## CORS
+
+- **Never** use `Access-Control-Allow-Origin: *` with `credentials: true`
+- Use explicit origin allowlist — validate `Origin` header against trusted domains
+- List only needed HTTP methods and headers
+- Set `maxAge` for preflight caching
+
+## CSRF Protection
+
+- Add CSRF tokens to all state-changing forms
+- Use `SameSite=Lax` or `Strict` cookies
+- Verify `Origin`/`Referer` headers on sensitive endpoints
+- **Never** use GET requests for state-changing operations
+
+## Client-Side Storage
+
+- **Never** store JWTs or auth tokens in `localStorage` — use `HttpOnly` cookies
+- Minimize PII in client storage
+- Set `Cache-Control: no-store` on pages with sensitive data
+- Add `integrity` attribute to all external `<script>` and `<link>` tags (SRI)
+
+## Exposed Environment Variables
+
+- **React:** `REACT_APP_*` / **Next.js:** `NEXT_PUBLIC_*` are client-visible — **never** put secrets in these
+- Store secrets server-side and expose via API routes

@@ -1,0 +1,52 @@
+---
+description: "Mobile application security rules — secure storage, network security, certificate pinning, authentication, binary security, WebView hardening, and deep link safety for iOS, Android, React Native, and Flutter."
+globs: ["**/*.swift", "**/*.kt", "**/*.java", "**/*.dart", "**/AndroidManifest.xml", "**/Info.plist", "**/network_security_config.xml", "**/Podfile*", "**/pubspec.*", "**/build.gradle*", "**/*.xcconfig"]
+---
+
+# Mobile Application Security
+
+## Secure Storage
+
+- **iOS:** Use Keychain with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` for sensitive data
+- **Android:** Use EncryptedSharedPreferences or Android Keystore — **never** plain SharedPreferences for secrets
+- **React Native:** Use `react-native-keychain` — **never** AsyncStorage for tokens
+- **Flutter:** Use `flutter_secure_storage`
+- **Never** hardcode API keys in source — use build-time injection via environment variables
+- Set `android:allowBackup="false"` to prevent unencrypted backup exposure
+- Disable verbose logging in production builds
+
+## Network Security
+
+- Implement certificate pinning for API connections (pin to leaf or intermediate cert)
+- **Android:** Set `cleartextTrafficPermitted="false"` in `network_security_config.xml`
+- **iOS:** Don't set `NSAllowsArbitraryLoads: true` — enforce ATS (App Transport Security)
+- **Never** disable TLS verification (`InsecureSkipVerify`, `TrustManager` accepting all certs)
+- **Never** send tokens or PII in URL path/query parameters
+
+## Authentication
+
+- Use biometric auth to unlock Keychain/Keystore-stored credentials, then authenticate with server
+- Implement silent token refresh — handle 401 by refreshing before retrying
+- Require biometric/PIN re-verification for sensitive operations (payment, profile changes)
+- Clear credentials on first launch after reinstall
+
+## Binary Security
+
+- **Android:** Set `debuggable false`, enable R8/ProGuard, use release signing
+- **iOS:** Use Swift whole-module optimization
+- Implement app attestation: Play Integrity API (Android), App Attest (iOS)
+- Set `exported="false"` for internal Android Activities/Services
+
+## WebView Security
+
+- Disable JavaScript when not needed in WebViews
+- Set `setAllowFileAccess(false)` and `setAllowFileAccessFromFileURLs(false)`
+- Minimize `addJavascriptInterface` exposure — validate origin
+- Block mixed content: `setMixedContentMode(MIXED_CONTENT_NEVER_ALLOW)`
+
+## Deep Links
+
+- Use App Links (Android) / Universal Links (iOS) with domain verification — not custom URL schemes
+- Validate all deep link parameters against allowlists
+- **Never** pass credentials or PII in deep links
+- Validate redirect destinations against trusted domains

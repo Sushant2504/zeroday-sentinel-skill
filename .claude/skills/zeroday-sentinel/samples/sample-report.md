@@ -11,17 +11,17 @@ This is an example of the output produced by the zeroday-sentinel skill.
 **Project Type:** Web App (API + Frontend)
 **Tech Stack:** Python (FastAPI), TypeScript (React), PostgreSQL, Docker, GitHub Actions
 **Scope:** 18 files changed in current branch vs main
-**Files Reviewed:** 18 (3 critical, 6 high risk)
-**Domains Analyzed:** Application, Web, API, Authentication, Database, Containers, CI/CD, Secrets, Performance
+**Files Reviewed:** 21 (4 critical, 7 high risk)
+**Domains Analyzed:** Application, Web, API, Authentication, Database, Containers, CI/CD, Secrets, Performance, Critical Workflows
 
 ### Summary
 
 | Severity | Count |
 |----------|-------|
 | CRITICAL | 2 |
-| HIGH | 4 |
-| MEDIUM | 3 |
-| LOW | 2 |
+| HIGH | 5 |
+| MEDIUM | 4 |
+| LOW | 3 |
 
 ### Findings
 
@@ -461,6 +461,137 @@ curl http://localhost:8000/api/trigger-error
 # Should return generic error, NOT stack trace
 ```
 Expected: `{"error": "Internal server error", "request_id": "..."}`
+
+---
+
+**[HIGH] Feature Flag Gating Authentication Check**
+
+- **File:** `api/middleware/feature_gate.py:23`
+- **Category:** `Feature Flag - Security Gate`
+- **Issue:** Authentication middleware is conditionally applied based on feature flag `new-auth-flow`. When the flag is off, requests bypass authentication entirely
+- **Impact:** If the flag is disabled (maintenance, flag service outage, or misconfiguration), all protected endpoints become publicly accessible
+- **Affected Roles:** API Dev, DevOps
+
+**Remediation:**
+
+**Step 1 — Immediate Fix:**
+```python
+# Before (vulnerable) — auth skipped when flag is off
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if feature_flags.is_enabled("new-auth-flow"):
+        await verify_token(request)
+    response = await call_next(request)
+    return response
+
+# After (fixed) — auth is unconditional, only implementation varies
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    if request.url.path not in PUBLIC_PATHS:
+        await verify_token(request)  # always runs
+    response = await call_next(request)
+    return response
+```
+
+**Step 2 — Verify:**
+```bash
+# Disable the feature flag, then test protected endpoint
+curl -X GET http://localhost:8000/api/users -H "Authorization: Bearer valid-token"
+# Should return 200
+
+curl -X GET http://localhost:8000/api/users
+# Should return 401 regardless of flag state
+```
+Expected: 401 Unauthorized when no token provided, regardless of feature flag state
+
+**Step 3 — Prevent Recurrence:**
+- Add linting rule to detect feature flags near auth/security code
+- Establish team policy: security checks must never be behind feature flags
+
+**Step 4 — Harden Further:**
+- Implement quarterly feature flag audit to remove stale flags
+- Tag security-relevant flags with metadata for automated review
+
+---
+
+**[MEDIUM] Database Migration Without Rollback Path**
+
+- **File:** `migrations/0015_add_user_roles.sql:1`
+- **Category:** `Rollback - No Down Migration`
+- **Issue:** Migration adds `ALTER TABLE users ADD COLUMN role` and `DROP TABLE legacy_permissions` but provides no DOWN migration. The `DROP TABLE` is destructive and irreversible
+- **Impact:** If the migration causes issues in production, there is no automated rollback path. The dropped table's data is permanently lost
+- **Affected Roles:** DBA, DevOps
+
+**Remediation:**
+
+**Step 1 — Immediate Fix:**
+```sql
+-- Add DOWN migration
+-- DOWN:
+CREATE TABLE IF NOT EXISTS legacy_permissions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    permission VARCHAR(100)
+);
+ALTER TABLE users DROP COLUMN IF EXISTS role;
+
+-- Better approach: split into 3 phases
+-- Phase 1 (this PR): Add new column, copy data
+-- Phase 2 (after verification): Update app code to use new column
+-- Phase 3 (separate PR): Drop legacy table after Phase 2 is stable
+```
+
+**Step 2 — Verify:**
+```bash
+# Test migration round-trip in staging
+python manage.py migrate myapp 0015  # forward
+python manage.py migrate myapp 0014  # rollback
+python manage.py migrate myapp 0015  # forward again
+```
+Expected: All three steps succeed without errors, data integrity maintained
+
+**Step 3 — Prevent Recurrence:**
+- Add CI check requiring every UP migration to have a corresponding DOWN migration
+- Block `DROP TABLE` in migrations without team lead approval
+
+**Step 4 — Harden Further:**
+- Use expand-contract pattern for all destructive schema changes
+- Require staging deployment with rollback test before production migration
+
+---
+
+**[LOW] Hotfix Branch Not Merged Back to Develop**
+
+- **File:** `(branch: hotfix/fix-payment-timeout)`
+- **Category:** `Hotfix - Missing Review`
+- **Issue:** Hotfix branch `hotfix/fix-payment-timeout` was merged to main 5 days ago but has not been merged back to develop. The fix is missing from the development branch
+- **Impact:** The fix will be lost in the next release cut from develop, potentially reintroducing the payment timeout bug
+- **Affected Roles:** DevOps, All
+
+**Remediation:**
+
+**Step 1 — Immediate Fix:**
+```bash
+git checkout develop
+git merge hotfix/fix-payment-timeout
+git push origin develop
+git branch -d hotfix/fix-payment-timeout
+```
+
+**Step 2 — Verify:**
+```bash
+git log develop --oneline | head -5
+# Should contain the hotfix commit
+```
+Expected: Hotfix commit visible in develop branch history
+
+**Step 3 — Prevent Recurrence:**
+- Enable auto-delete for merged branches in GitHub repo settings
+- Add CI check that verifies hotfix branches are merged to all active branches
+
+**Step 4 — Harden Further:**
+- Use GitHub branch protection rules to require hotfix merge-back
+- Set up Slack/email notification when hotfix branches are stale >24h
 
 ---
 

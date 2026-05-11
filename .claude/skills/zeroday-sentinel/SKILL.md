@@ -6,9 +6,11 @@ description: >
   developer workflows — web apps, mobile apps, APIs, microservices, databases,
   infrastructure-as-code, CI/CD pipelines, containers, Kubernetes, performance
   and scaling configurations, cloud-native services, agent/skill definitions,
-  and supply chain analysis. Provides step-by-step remediation playbooks that
-  developers can execute immediately. Adaptively reviews pending changes when
-  present, or performs a full project security audit when no changes are detected.
+  supply chain analysis, and critical workflows (app store deployments, merge
+  conflicts, hotfixes, rollbacks, feature flags, release gates). Provides
+  step-by-step remediation playbooks that developers can execute immediately.
+  Adaptively reviews pending changes when present, or performs a full project
+  security audit when no changes are detected.
 when_to_use: >
   TRIGGER when: security review requested, code changes touch authentication or
   authorization logic, new dependencies added, infrastructure-as-code modified,
@@ -18,9 +20,12 @@ when_to_use: >
   (rate limiting, caching, CDN, load balancers), API endpoints added or modified,
   database queries or schema changes, web frontend changes (CSP, CORS, cookies,
   session management), mobile app security concerns, OAuth/JWT/auth flow changes,
-  cloud service configurations (AWS, GCP, Azure), user asks "is this secure",
-  user asks for help fixing a vulnerability, or reviewing PRs/commits that touch
-  security-sensitive files.
+  cloud service configurations (AWS, GCP, Azure), app store or Play Store
+  deployment, release preparation, merge conflict resolution in security-critical
+  files, hotfix or emergency deployment, rollback planning, feature flag changes
+  that gate security behavior, pre-release security gate, user asks "is this
+  secure", user asks for help fixing a vulnerability, or reviewing PRs/commits
+  that touch security-sensitive files.
 allowed-tools: [Read, Grep, Glob, Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git status *), Bash(find . *), Bash(curl -s https://api.securityscorecards.dev/*), WebSearch]
 ---
 
@@ -32,7 +37,7 @@ You serve every developer role: web developers, app developers, API engineers, d
 
 ## Scope
 
-This skill performs static analysis, adversarial reasoning, and remediation guidance across 15 security domains. It does **NOT** perform:
+This skill performs static analysis, adversarial reasoning, and remediation guidance across 16 security domains. It does **NOT** perform:
 - CVE/vulnerability database scanning (covered by other tools)
 - Runtime security testing
 - Penetration testing or active exploitation
@@ -81,9 +86,9 @@ git status --porcelain 2>/dev/null
 
 | Risk Level | File Patterns |
 |------------|--------------|
-| **Critical** | `*.tf` (IAM, security groups), `argocd/`, CI/CD configs, `*.key`, `*.pem`, `.env*`, auth middleware, payment handlers, `*.sql` (migrations with grants/roles) |
+| **Critical** | `*.tf` (IAM, security groups), `argocd/`, CI/CD configs, `*.key`, `*.pem`, `.env*`, auth middleware, payment handlers, `*.sql` (migrations with grants/roles), `*.keystore`, `*.jks`, release signing configs |
 | **High** | Go/Python/JS/TS/Java/C#/Ruby/Rust/Swift/Kotlin source, Dockerfiles, Helm charts, shell scripts, K8s manifests, `SKILL.md`, agent definitions, API route handlers, database models/queries, nginx/Apache/HAProxy configs, rate limiter configs, caching configs |
-| **Medium** | Config files (YAML, JSON, TOML), `plugin.json`, `.mcp.json`, dependency manifests, `*.csv`/`*.xlsx` (data files with potential PII), load balancer configs, CDN configs, Webpack/Vite/build configs |
+| **Medium** | Config files (YAML, JSON, TOML), `plugin.json`, `.mcp.json`, dependency manifests, `*.csv`/`*.xlsx` (data files with potential PII), load balancer configs, CDN configs, Webpack/Vite/build configs, `Fastfile`, `Appfile`, release/deploy scripts, feature flag configs |
 | **Low** | Markdown docs (non-code), test fixtures, static assets, images, `*.log` files |
 
 Focus analysis on Critical and High risk files first. For full repo scans, prioritize by risk level.
@@ -109,6 +114,7 @@ Based on files detected, determine which security domains apply:
 | Supply Chain | `go.mod`, `requirements.txt`, `package.json`, `Chart.yaml`, etc. | [references/supply-chain-analysis.md](references/supply-chain-analysis.md) |
 | Mobile | `*.swift`, `*.kt`, `*.dart`, `AndroidManifest.xml`, `Info.plist`, React Native/Flutter | [references/mobile-security.md](references/mobile-security.md) |
 | Cloud Native | AWS/GCP/Azure SDK usage, cloud service configs, serverless functions | [references/cloud-native-security.md](references/cloud-native-security.md) |
+| Critical Workflows | `Fastfile`, `Appfile`, release configs, deploy scripts, hotfix branches, feature flag configs, rollback scripts, version files, `*.keystore`, `*.jks`, `*.xcconfig`, merge conflicts in auth/validation files | [references/critical-workflows.md](references/critical-workflows.md) |
 
 Load reference documents **only** for domains triggered by detected files. Do not load all references for every invocation.
 

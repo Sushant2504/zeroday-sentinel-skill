@@ -1,0 +1,66 @@
+---
+description: "Performance and scaling security rules — rate limiting, caching security, CDN configuration, load balancer hardening, connection pool safety, resource exhaustion prevention, and CSV/Excel injection for data exports."
+globs: ["**/nginx*", "**/haproxy*", "**/caddy*", "**/rate*limit*", "**/throttl*", "**/cache*", "**/redis*", "**/memcache*", "**/queue*", "**/worker*", "**/export*", "**/csv*", "**/excel*", "**/xlsx*", "**/*.csv"]
+---
+
+# Performance & Scaling Security
+
+## Rate Limiting
+
+- Add rate limiting to **all** public endpoints
+- Strict limits on auth: 5-10 req/min login, 3-5 req/hour registration and password reset
+- Rate limit by user ID (authenticated) + IP (fallback) — not IP alone (bypassable via proxies)
+- Return `X-RateLimit-*` headers for client self-throttling
+- Implement exponential backoff after auth failures
+- Use Redis-backed rate limiting for multi-instance deployments
+
+## Caching Security
+
+- Set `Cache-Control: no-store, private` for authenticated/sensitive responses
+- **Never** cache responses containing auth tokens, PII, or session data in shared caches
+- Include all varying headers in cache key — use `Vary` header correctly
+- Sanitize cache keys — don't include raw user input
+- Invalidate user-specific caches on auth events (logout, role change, password reset)
+- Redis: set `requirepass`, use TLS, bind to localhost or private network
+
+## CDN Security
+
+- Restrict origin to accept requests only from CDN IPs
+- Enable WAF with OWASP Core Rule Set
+- Use specific CORS origin allowlists, not wildcards
+- Don't let CDN override application `Cache-Control` headers for sensitive endpoints
+
+## Load Balancer Hardening
+
+- Re-encrypt traffic between LB and backends (TLS to origin)
+- Configure LB to **set** `X-Forwarded-For`, not append — prevents spoofing
+- Set max request body size: nginx `client_max_body_size 10m;`
+- Use TLS 1.2+ with strong cipher suites
+- Patch for HTTP/2 rapid reset (CVE-2023-44487)
+
+## Resource Exhaustion Prevention
+
+- Set **timeouts** on every external call: connect 5s, read 30s, total 60s
+- Add **maximum iteration limits** to all loops
+- Set request body and file upload size limits
+- Use `LIMIT` on every database query (max 100)
+- Set connection pool limits: max 20 DB connections, idle timeout 30s
+- Use regex libraries with backtracking limits (RE2) — prevent ReDoS
+- Set server-level request timeout: `server.setTimeout(30000)`
+
+## Queue & Message Broker Security
+
+- Validate message schema before processing
+- Configure dead-letter queues with max retry count (3-5)
+- Set max message size limits
+- Enable TLS and authentication for broker connections
+- Set consumer concurrency limits to prevent resource exhaustion
+
+## CSV/Excel Export Security
+
+- **Sanitize all cell values** — prefix cells starting with `=`, `+`, `-`, `@`, `\t`, `\r` with single quote `'`
+- Set entity expansion limits when processing uploaded XLSX (XML bomb prevention)
+- Mask PII in exports — require additional auth for sensitive data exports
+- Set max row/column limits when parsing uploaded CSV/Excel files
+- Add `Content-Disposition: attachment` header on download endpoints
+- Log export events for audit
