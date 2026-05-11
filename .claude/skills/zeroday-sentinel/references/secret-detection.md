@@ -8,60 +8,60 @@ These patterns have low false-positive rates and should always be flagged.
 
 ### Cloud Provider Credentials
 
-| Secret Type | Regex Pattern | Severity |
-|-------------|---------------|----------|
-| AWS Access Key ID | `AKIA[0-9A-Z]{16}` | CRITICAL |
-| AWS Secret Access Key | `(?i)aws_secret_access_key\s*[:=]\s*[A-Za-z0-9/+=]{40}` | CRITICAL |
-| AWS Session Token | `(?i)aws_session_token\s*[:=]\s*[A-Za-z0-9/+=]+` | CRITICAL |
-| GCP Service Account Key | `"type"\s*:\s*"service_account"` (in JSON files) | CRITICAL |
-| Azure Client Secret | `(?i)azure[_-]?client[_-]?secret\s*[:=]\s*["'][^"']+["']` | CRITICAL |
-| Azure Storage Key | `(?i)AccountKey\s*=\s*[A-Za-z0-9/+=]{86,88}==` | CRITICAL |
+| Secret Type | Regex Pattern | Severity | Remediation |
+|-------------|---------------|----------|-------------|
+| AWS Access Key ID | `AKIA[0-9A-Z]{16}` | CRITICAL | Rotate key in AWS IAM console immediately. Use IAM roles with STS temporary credentials instead |
+| AWS Secret Access Key | `(?i)aws_secret_access_key\s*[:=]\s*[A-Za-z0-9/+=]{40}` | CRITICAL | Delete the key in IAM. Use `aws configure` with `credential_process` for dynamic credentials |
+| AWS Session Token | `(?i)aws_session_token\s*[:=]\s*[A-Za-z0-9/+=]+` | CRITICAL | These are temporary but still sensitive. Rotate the source credentials that generated them |
+| GCP Service Account Key | `"type"\s*:\s*"service_account"` (in JSON files) | CRITICAL | Delete the key in GCP Console. Use Workload Identity Federation instead of downloaded keys |
+| Azure Client Secret | `(?i)azure[_-]?client[_-]?secret\s*[:=]\s*["'][^"']+["']` | CRITICAL | Rotate in Azure AD. Use Managed Identity for Azure resources, certificate auth for external apps |
+| Azure Storage Key | `(?i)AccountKey\s*=\s*[A-Za-z0-9/+=]{86,88}==` | CRITICAL | Regenerate storage keys. Use SAS tokens with minimum permissions and expiration |
 
 ### API Tokens & Keys
 
-| Secret Type | Regex Pattern | Severity |
-|-------------|---------------|----------|
-| GitHub Token (classic) | `ghp_[A-Za-z0-9]{36,}` | CRITICAL |
-| GitHub Token (fine-grained) | `github_pat_[A-Za-z0-9_]{82}` | CRITICAL |
-| GitHub OAuth | `gho_[A-Za-z0-9]{36,}` | CRITICAL |
-| GitLab Token | `glpat-[A-Za-z0-9_-]{20,}` | CRITICAL |
-| Slack Bot Token | `xoxb-[0-9]{10,}-[0-9]{10,}-[A-Za-z0-9]{24,}` | CRITICAL |
-| Slack Webhook | `hooks\.slack\.com/services/T[A-Z0-9]{8,}/B[A-Z0-9]{8,}/[A-Za-z0-9]{24,}` | HIGH |
-| PagerDuty API Key | `(?i)pagerduty.*[:=]\s*["']?[A-Za-z0-9+/]{20}["']?` | HIGH |
-| SendGrid API Key | `SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}` | CRITICAL |
-| Stripe API Key | `[sr]k_(live\|test)_[A-Za-z0-9]{24,}` | CRITICAL |
-| Twilio Auth Token | `(?i)twilio.*[:=]\s*["']?[a-f0-9]{32}["']?` | HIGH |
+| Secret Type | Regex Pattern | Severity | Remediation |
+|-------------|---------------|----------|-------------|
+| GitHub Token (classic) | `ghp_[A-Za-z0-9]{36,}` | CRITICAL | Revoke at github.com/settings/tokens. Use fine-grained PATs or GitHub Apps instead |
+| GitHub Token (fine-grained) | `github_pat_[A-Za-z0-9_]{82}` | CRITICAL | Revoke at github.com/settings/tokens. Recreate with minimum required permissions |
+| GitHub OAuth | `gho_[A-Za-z0-9]{36,}` | CRITICAL | Revoke the OAuth app authorization. Regenerate client secret |
+| GitLab Token | `glpat-[A-Za-z0-9_-]{20,}` | CRITICAL | Revoke at GitLab Profile → Access Tokens. Use project/group tokens with limited scope |
+| Slack Bot Token | `xoxb-[0-9]{10,}-[0-9]{10,}-[A-Za-z0-9]{24,}` | CRITICAL | Regenerate at api.slack.com/apps. Rotate OAuth tokens for the workspace |
+| Slack Webhook | `hooks\.slack\.com/services/T[A-Z0-9]{8,}/B[A-Z0-9]{8,}/[A-Za-z0-9]{24,}` | HIGH | Regenerate webhook URL in Slack app config. Use bot tokens for better access control |
+| PagerDuty API Key | `(?i)pagerduty.*[:=]\s*["']?[A-Za-z0-9+/]{20}["']?` | HIGH | Regenerate in PagerDuty settings. Use OAuth for integrations |
+| SendGrid API Key | `SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}` | CRITICAL | Delete and recreate at app.sendgrid.com/settings/api_keys with minimum scope |
+| Stripe API Key | `[sr]k_(live\|test)_[A-Za-z0-9]{24,}` | CRITICAL | Roll keys at dashboard.stripe.com/apikeys. Use restricted keys with minimum permissions |
+| Twilio Auth Token | `(?i)twilio.*[:=]\s*["']?[a-f0-9]{32}["']?` | HIGH | Regenerate at twilio.com/console. Use API keys instead of account auth token |
 
 ### Private Keys & Certificates
 
-| Secret Type | Regex Pattern | Severity |
-|-------------|---------------|----------|
-| RSA Private Key | `-----BEGIN RSA PRIVATE KEY-----` | CRITICAL |
-| EC Private Key | `-----BEGIN EC PRIVATE KEY-----` | CRITICAL |
-| OpenSSH Private Key | `-----BEGIN OPENSSH PRIVATE KEY-----` | CRITICAL |
-| PGP Private Key | `-----BEGIN PGP PRIVATE KEY BLOCK-----` | CRITICAL |
-| PKCS8 Private Key | `-----BEGIN PRIVATE KEY-----` | CRITICAL |
-| Certificate (not secret but verify) | `-----BEGIN CERTIFICATE-----` | LOW |
+| Secret Type | Regex Pattern | Severity | Remediation |
+|-------------|---------------|----------|-------------|
+| RSA Private Key | `-----BEGIN RSA PRIVATE KEY-----` | CRITICAL | Regenerate the key pair. Revoke associated certificates. Never commit private keys |
+| EC Private Key | `-----BEGIN EC PRIVATE KEY-----` | CRITICAL | Same as RSA — regenerate and revoke |
+| OpenSSH Private Key | `-----BEGIN OPENSSH PRIVATE KEY-----` | CRITICAL | Generate new key: `ssh-keygen -t ed25519`. Remove old public key from all authorized_keys files |
+| PGP Private Key | `-----BEGIN PGP PRIVATE KEY BLOCK-----` | CRITICAL | Revoke the key on keyservers. Generate new PGP key pair |
+| PKCS8 Private Key | `-----BEGIN PRIVATE KEY-----` | CRITICAL | Regenerate key pair. Reissue certificates. Update all services using this key |
+| Certificate (not secret but verify) | `-----BEGIN CERTIFICATE-----` | LOW | Not a secret itself, but verify the corresponding private key isn't also committed |
 
 ### Database & Connection Strings
 
-| Secret Type | Regex Pattern | Severity |
-|-------------|---------------|----------|
-| PostgreSQL connection | `postgres://[^:]+:[^@]+@` | CRITICAL |
-| MySQL connection | `mysql://[^:]+:[^@]+@` | CRITICAL |
-| MongoDB connection | `mongodb(\+srv)?://[^:]+:[^@]+@` | CRITICAL |
-| Redis with password | `redis://:[^@]+@` | CRITICAL |
-| Generic connection string | `(?i)(password\|passwd\|pwd)\s*[:=]\s*["'][^"']{8,}["']` | HIGH |
-| JDBC with password | `jdbc:[a-z]+://.*password=[^&\s]+` | CRITICAL |
+| Secret Type | Regex Pattern | Severity | Remediation |
+|-------------|---------------|----------|-------------|
+| PostgreSQL connection | `postgres://[^:]+:[^@]+@` | CRITICAL | Change password. Use `DATABASE_URL` env var. Use IAM auth for cloud databases |
+| MySQL connection | `mysql://[^:]+:[^@]+@` | CRITICAL | Change password. Use env var or secret manager |
+| MongoDB connection | `mongodb(\+srv)?://[^:]+:[^@]+@` | CRITICAL | Change password. Use SCRAM-SHA-256 auth. Rotate via Atlas or mongosh |
+| Redis with password | `redis://:[^@]+@` | CRITICAL | Change Redis password. Use ACL users in Redis 6+ |
+| Generic connection string | `(?i)(password\|passwd\|pwd)\s*[:=]\s*["'][^"']{8,}["']` | HIGH | Move to env var or secret manager. Never hardcode credentials |
+| JDBC with password | `jdbc:[a-z]+://.*password=[^&\s]+` | CRITICAL | Use connection pooling with secret manager. Use IAM database auth where available |
 
 ### Generic Patterns (Higher False Positive Rate)
 
-| Pattern | Context Needed | Severity |
-|---------|---------------|----------|
-| `(?i)(api[_-]?key\|apikey)\s*[:=]\s*["'][A-Za-z0-9]{16,}["']` | Check if it's a real value, not a placeholder | HIGH |
-| `(?i)(secret\|token)\s*[:=]\s*["'][A-Za-z0-9+/=]{20,}["']` | Verify not a test/mock value | HIGH |
-| `(?i)bearer\s+[A-Za-z0-9._-]{20,}` | Could be in examples/docs | HIGH |
-| `(?i)authorization.*[:=]\s*["']Basic\s+[A-Za-z0-9+/=]+["']` | Base64-encoded credentials | HIGH |
+| Pattern | Context Needed | Severity | Remediation |
+|---------|---------------|----------|-------------|
+| `(?i)(api[_-]?key\|apikey)\s*[:=]\s*["'][A-Za-z0-9]{16,}["']` | Check if it's a real value, not a placeholder | HIGH | Move to env var. If placeholder, mark with `# nosecret` comment explaining why |
+| `(?i)(secret\|token)\s*[:=]\s*["'][A-Za-z0-9+/=]{20,}["']` | Verify not a test/mock value | HIGH | Move to env var or secret manager |
+| `(?i)bearer\s+[A-Za-z0-9._-]{20,}` | Could be in examples/docs | HIGH | Remove from code. Use dynamic token acquisition at runtime |
+| `(?i)authorization.*[:=]\s*["']Basic\s+[A-Za-z0-9+/=]+["']` | Base64-encoded credentials | HIGH | Decode and rotate the credentials. Use token-based auth instead of Basic auth |
 
 ## Files to Prioritize
 
@@ -86,6 +86,24 @@ service-account-key.json
 *.p12
 *.pfx
 .htpasswd
+```
+
+**Remediation — .gitignore setup:**
+```bash
+# Add to .gitignore
+cat >> .gitignore << 'EOF'
+.env
+.env.*
+!.env.example
+credentials.*
+secrets.*
+*.pem
+*.key
+*.p12
+*.pfx
+.htpasswd
+service-account-key.json
+EOF
 ```
 
 ## False Positive Guidance
@@ -137,3 +155,36 @@ When reporting a found secret:
    - Removing it from version history (`git filter-repo` or BFG)
    - Using environment variables or a secret manager instead
    - Adding the file pattern to `.gitignore`
+
+## Prevention Setup
+
+```bash
+# Option 1: git-secrets (AWS-focused)
+git secrets --install
+git secrets --register-aws
+
+# Option 2: detect-secrets (Yelp, multi-provider)
+pip install detect-secrets
+detect-secrets scan > .secrets.baseline
+# Add pre-commit hook
+
+# Option 3: gitleaks
+brew install gitleaks  # or download from GitHub
+gitleaks detect --source .
+
+# Option 4: truffleHog
+pip install trufflehog
+trufflehog git file://. --only-verified
+
+# GitHub-native: Enable secret scanning in repo Settings → Code security
+```
+
+## Secret Manager Migration Guide
+
+| From | To | Steps |
+|------|----|-------|
+| Hardcoded string | Environment variable | 1. Add to `.env` (gitignored). 2. Read with `os.environ["KEY"]`. 3. Set in CI/CD secrets |
+| Environment variable | AWS Secrets Manager | 1. Create secret: `aws secretsmanager create-secret`. 2. Read at runtime via SDK. 3. Grant IAM access |
+| Environment variable | HashiCorp Vault | 1. Store: `vault kv put secret/app key=value`. 2. Read via API or agent. 3. Set up auth method |
+| Environment variable | GCP Secret Manager | 1. Create: `gcloud secrets create`. 2. Add version. 3. Read via SDK with IAM permissions |
+| Environment variable | Azure Key Vault | 1. Create secret in Key Vault. 2. Reference via `@Microsoft.KeyVault(SecretUri=...)` in App Service |
