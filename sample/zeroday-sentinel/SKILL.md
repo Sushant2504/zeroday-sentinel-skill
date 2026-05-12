@@ -6,10 +6,8 @@ description: >
   developer workflows — web apps, mobile apps, APIs, microservices, databases,
   infrastructure-as-code, CI/CD pipelines, containers, Kubernetes, performance
   and scaling configurations, cloud-native services, agent/skill definitions,
-  supply chain analysis, critical workflows (app store deployments, merge
-  conflicts, hotfixes, rollbacks, feature flags, release gates), and git/GitHub
-  workflow security (branch protection, signed commits, credential management,
-  deploy keys, webhooks, organization hardening). Provides
+  supply chain analysis, and critical workflows (app store deployments, merge
+  conflicts, hotfixes, rollbacks, feature flags, release gates). Provides
   step-by-step remediation playbooks that developers can execute immediately.
   Adaptively reviews pending changes when present, or performs a full project
   security audit when no changes are detected.
@@ -25,11 +23,9 @@ when_to_use: >
   cloud service configurations (AWS, GCP, Azure), app store or Play Store
   deployment, release preparation, merge conflict resolution in security-critical
   files, hotfix or emergency deployment, rollback planning, feature flag changes
-  that gate security behavior, pre-release security gate, git workflow changes
-  (branch protection, CODEOWNERS, .gitignore, .gitmodules, deploy keys),
-  repository access or permission changes, signed commit enforcement, force
-  push incidents, user asks "is this secure", user asks for help fixing a
-  vulnerability, or reviewing PRs/commits that touch security-sensitive files.
+  that gate security behavior, pre-release security gate, user asks "is this
+  secure", user asks for help fixing a vulnerability, or reviewing PRs/commits
+  that touch security-sensitive files.
 allowed-tools: [Read, Grep, Glob, Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git status *), Bash(find . *), Bash(curl -s https://api.securityscorecards.dev/*), WebSearch]
 ---
 
@@ -41,7 +37,7 @@ You serve every developer role: web developers, app developers, API engineers, d
 
 ## Scope
 
-This skill performs static analysis, adversarial reasoning, and remediation guidance across 17 security domains. It does **NOT** perform:
+This skill performs static analysis, adversarial reasoning, and remediation guidance across 16 security domains. It does **NOT** perform:
 - CVE/vulnerability database scanning (covered by other tools)
 - Runtime security testing
 - Penetration testing or active exploitation
@@ -77,18 +73,7 @@ git status --porcelain 2>/dev/null
 
 **If no changes are detected** but arguments are provided:
 - If arguments name specific files or directories, scope to those
-- If arguments name a branch or commit range, use `git diff` on that range:
-
-```bash
-# PR branch vs main
-git diff --name-only main...HEAD
-
-# Specific commit
-git diff --name-only HEAD~1
-
-# Commit range
-git diff --name-only <start>..<end>
-```
+- If arguments name a branch or commit range, use `git diff` on that range
 
 **If no changes and no arguments**:
 - Scan the entire project directory
@@ -130,7 +115,6 @@ Based on files detected, determine which security domains apply:
 | Mobile | `*.swift`, `*.kt`, `*.dart`, `AndroidManifest.xml`, `Info.plist`, React Native/Flutter | [references/mobile-security.md](references/mobile-security.md) |
 | Cloud Native | AWS/GCP/Azure SDK usage, cloud service configs, serverless functions | [references/cloud-native-security.md](references/cloud-native-security.md) |
 | Critical Workflows | `Fastfile`, `Appfile`, release configs, deploy scripts, hotfix branches, feature flag configs, rollback scripts, version files, `*.keystore`, `*.jks`, `*.xcconfig`, merge conflicts in auth/validation files | [references/critical-workflows.md](references/critical-workflows.md) |
-| Git & GitHub Workflows | `.gitignore`, `.gitconfig`, `.gitmodules`, `CODEOWNERS`, `.github/` (non-workflow), branch protection configs, deploy key files, `.ssh/`, `.pre-commit-config.*`, `.git-credentials` | [references/git-github-security.md](references/git-github-security.md) |
 
 Load reference documents **only** for domains triggered by detected files. Do not load all references for every invocation.
 
@@ -163,19 +147,6 @@ image:\s*\S+:latest         # K8s/Helm
 "lodash":\s*"\*"            # npm wildcard
 uses:\s+\S+@(main|master)  # GitHub Actions branch ref
 ```
-
-**Tag Pinning Violations — Quick Reference:**
-
-| Context | Violation (flag this) | Expected (fix to this) |
-|---------|----------------------|----------------------|
-| Dockerfile `FROM` | `FROM nginx:latest`, `FROM nginx` | `FROM nginx:1.27.0` or `FROM nginx@sha256:...` |
-| K8s/Helm `image` | `tag: latest`, `tag: ""` | `tag: "v1.2.3"` |
-| Python deps | `requests`, `requests>=2.0` | `requests==2.31.0` |
-| Node.js deps | `"*"`, `"latest"`, `">=1.0"` | `"4.17.21"` |
-| Go deps | Enforced by tooling | Commit `go.sum` |
-| GitHub Actions | `uses: actions/checkout@v4` | `uses: actions/checkout@<full-sha>` |
-| Helm charts | `version: ""` or missing | `version: "1.2.3"` in `Chart.yaml` |
-| Docker Compose | `image: redis:latest` | `image: redis:7.2.4@sha256:...` |
 
 Report as **MEDIUM** under the appropriate pinning category.
 
@@ -245,15 +216,6 @@ Flag conditions (see [references/supply-chain-analysis.md](references/supply-cha
 - `Dangerous-Workflow` check < 5: **HIGH**
 
 If the API is unavailable, note the gap and continue.
-
-### Bulk Dependency Changes
-
-If more than 10 dependencies are changed in a single diff:
-- Flag as **HIGH**: `Supply Chain - Bulk Dependency Change`
-- Recommend splitting into smaller, reviewable PRs
-- Apply new package checks to **all** changed deps, not just added ones
-
-**Exception:** Lock file-only regeneration (no manifest changes) → reduce to **LOW**.
 
 ### Threat Intelligence
 

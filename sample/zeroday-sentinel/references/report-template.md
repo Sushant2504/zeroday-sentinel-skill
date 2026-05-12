@@ -239,21 +239,6 @@ Expected: {EXPECTED_RESULT}
 - `Feature Flag - Client-Side Evaluation`
 - `Feature Flag - Stale Security Flag`
 
-### Git & GitHub Categories
-- `Git - Force Push to Protected Branch`
-- `Git - Unsigned Commits`
-- `Git - Credential Storage`
-- `Git - Rebase of Shared History`
-- `Git - Submodule Risk`
-- `Git - Config Security`
-- `GitHub - Branch Protection Gap`
-- `GitHub - Overly Permissive Access`
-- `GitHub - Deploy Key Exposure`
-- `GitHub - Webhook Secret Missing`
-- `GitHub - Missing 2FA`
-- `GitHub - PAT Scope/Expiration`
-- `GitHub - Organization Hardening`
-
 ### Secret Detection Categories
 - `Secrets - Cloud Credential`
 - `Secrets - API Token`

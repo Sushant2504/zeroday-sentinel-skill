@@ -1,0 +1,87 @@
+---
+description: "Git and GitHub workflow security rules — repository access control, branch protection, authentication, credential management, merge/rebase safety, commit signing, deploy keys, webhooks, organization hardening, and git configuration."
+globs: ["**/.gitignore", "**/.gitconfig", "**/.gitmodules", "**/.git-credentials", "**/CODEOWNERS", "**/.github/**", "**/.ssh/**", "**/*deploy-key*", "**/.pre-commit-config*", "**/.husky/**", "**/.lefthook*"]
+---
+
+# Git & GitHub Workflow Security
+
+## Repository Access Control
+
+- **Always** protect `main`/`master` with branch protection rules
+- Require PR reviews (at least 1 reviewer), dismiss stale reviews on new commits
+- Require status checks to pass before merging
+- Enable `Require review from Code Owners` with CODEOWNERS file
+- **Never** allow admins to bypass branch protection — enable `Do not allow bypassing`
+- **Never** allow force pushes to protected branches
+- Disable forking on private repositories unless explicitly needed
+- Enable automatic deletion of merged head branches
+
+## Authentication & Credentials
+
+- **Never** use `git config credential.helper store` — stores plaintext in `~/.git-credentials`
+- Use secure credential helpers: `osxkeychain` (macOS), `libsecret` (Linux), `manager` (Windows)
+- Use Ed25519 SSH keys with passphrase: `ssh-keygen -t ed25519 -a 100`
+- Set PAT expiration (max 90 days). Migrate classic PATs to fine-grained (repo-scoped)
+- **Never** embed tokens in clone URLs: `git clone https://user:token@github.com/...`
+- **Never** commit `.git-credentials` — add to `.gitignore`
+- **Never** set `http.sslVerify false` — fix the certificate issue instead
+
+## Branch & Tag Security
+
+- **Never** `git push --force` to shared branches — use `--force-with-lease` if force push is needed
+- **Never** `git branch -D` unless certain the branch has no unique commits — use `-d` (safe delete)
+- **Never** move published tags — protect tags in branch protection settings
+- Enable signed commits (`commit.gpgsign = true`) and signed tags (`tag.gpgsign = true`)
+- Verify signatures: `git log --show-signature` and `git tag -v <tag>`
+
+## Merge, Rebase & Conflict Resolution
+
+- **Never** rebase commits already pushed to shared branches — use merge instead
+- **Never** `git reset --hard` without first stashing or branching: `git stash` or `git branch backup`
+- **Never** merge with failing CI checks — enable required status checks
+- After merge conflict resolution, **always** run the full test suite
+- Review squash merge diffs as carefully as regular merges — squashing can obscure changes
+- Audit `git stash` entries for secrets: `git stash show -p` before sharing machines
+- For conflict resolution in security-critical files (auth, validation, .gitignore, lock files), see the critical-workflows rules
+
+## Push & Pull Security
+
+- Always clone via SSH or HTTPS — **never** `git clone http://` (unencrypted)
+- **Never** push to main directly — use feature branches and PRs
+- Audit submodule sources in `.gitmodules` — **never** reference untrusted repositories
+- Use full clone (not `--depth 1`) for security scanning — shallow clones miss historical secrets
+- Verify remote URLs: `git remote -v` — watch for typosquatted org names
+
+## Commit History Security
+
+- Require signed commits on protected branches to prevent author spoofing
+- **Never** interpolate commit messages in shell commands (same injection risk as PR title)
+- Secrets "removed" in later commits are still in history — rotate and purge with `git filter-repo`
+- Review squash merge diffs carefully — squashing can hide security-weakening changes
+
+## GitHub Organization Hardening
+
+- Require 2FA for all organization members
+- Set base repository permissions to `No permission` or `Read` — grant write per-team
+- Have 2-5 organization owners (not 1, not >5)
+- Audit outside collaborators quarterly — remove inactive ones
+- Monitor audit log for: role changes, visibility changes, branch protection changes
+- Enable SAML SSO for enterprise organizations
+
+## Deploy Keys & Webhooks
+
+- Deploy keys should be **read-only** unless writes are strictly necessary
+- **Never** share the same deploy key across multiple repositories
+- **Always** set webhook secrets and verify `X-Hub-Signature-256` on every delivery
+- **Never** use `http://` for webhook payload URLs — always HTTPS
+- Review GitHub App permissions — grant minimum required
+- Installation tokens expire after 1 hour — don't cache beyond expiry
+
+## Git Configuration Security
+
+- Set secure credential helper (not `store`)
+- Create global `.gitignore` with secret patterns: `*.pem`, `*.key`, `.env`, `credentials.*`
+- Enable commit signing globally: `git config --global commit.gpgsign true`
+- Install pre-commit hooks (`detect-secrets`, `gitleaks`, `no-commit-to-branch`)
+- Audit git aliases for dangerous commands (`push --force`, `reset --hard`)
+- Use `core.autocrlf = input` to standardize line endings and prevent diff noise hiding real changes

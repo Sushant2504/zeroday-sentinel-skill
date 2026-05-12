@@ -8,7 +8,7 @@ When invoked (or auto-triggered), Zero-Day Sentinel:
 
 1. **Detects scope** — reviews pending changes if any exist, otherwise audits the full project
 2. **Identifies tech stack** — determines which security domains apply (web, API, mobile, IaC, etc.)
-3. **Scans for vulnerabilities** — applies domain-specific checks from 16 security domains
+3. **Scans for vulnerabilities** — applies domain-specific checks from 17 security domains
 4. **Analyzes supply chain** — queries OpenSSF Scorecard, checks for typosquatting, flags new packages
 5. **Thinks adversarially** — models abuse scenarios, trust boundary crossings, privilege escalation
 6. **Provides remediation** — every finding includes a 4-step fix: Immediate Fix, Verify, Prevent, Harden
@@ -27,7 +27,7 @@ When invoked (or auto-triggered), Zero-Day Sentinel:
 | **Release Engineers** | App store/Play Store deployment, release signing, staged rollouts, hotfixes, rollbacks, feature flags |
 | **Cloud Engineers** | AWS, GCP, Azure — IAM, serverless, storage, networking, container registries |
 
-## 16 Security Domains
+## 17 Security Domains
 
 | # | Domain | Reference |
 |---|--------|-----------|
@@ -47,6 +47,7 @@ When invoked (or auto-triggered), Zero-Day Sentinel:
 | 14 | Cloud Native Security | AWS, GCP, Azure services and configurations |
 | 15 | Agent & Skill Security | Claude Code skills, MCP servers, plugin manifests |
 | 16 | Critical Workflows | App store deployment, merge conflicts, hotfixes, rollbacks, feature flags |
+| 17 | Git & GitHub Workflows | Branch protection, signed commits, credentials, deploy keys, webhooks, org hardening |
 
 ## Installation
 
@@ -147,7 +148,8 @@ See [samples/sample-report.md](.claude/skills/zeroday-sentinel/samples/sample-re
 │   ├── cloud-native-security.md        # AWS, GCP, Azure
 │   ├── agent-skill-security.md         # Claude Code skills, MCP, plugins
 │   ├── critical-workflows.md          # App store deploy, merge conflicts, hotfixes, rollbacks
-│   ├── remediation-playbooks.md        # Step-by-step fix guides (900+ lines)
+│   ├── git-github-security.md         # Branch protection, signed commits, deploy keys, webhooks
+│   ├── remediation-playbooks.md        # Step-by-step fix guides (1000+ lines)
 │   └── report-template.md             # Output format, severity definitions
 └── samples/
     └── sample-report.md                # Example output
@@ -167,7 +169,8 @@ See [samples/sample-report.md](.claude/skills/zeroday-sentinel/samples/sample-re
 ├── supply-chain-security.mdc        # Supply chain analysis
 ├── mobile-security.mdc             # Mobile app security
 ├── cloud-native-security.mdc       # Cloud service security
-└── critical-workflows.mdc          # Release, merge conflicts, hotfixes, rollbacks
+├── critical-workflows.mdc          # Release, merge conflicts, hotfixes, rollbacks
+└── git-github-security.mdc         # Branch protection, credentials, signed commits
 ```
 
 ## Security Model

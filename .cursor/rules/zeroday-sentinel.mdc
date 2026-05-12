@@ -1,5 +1,5 @@
 ---
-description: "Zero-Day Sentinel — full-spectrum security engineer. Applies adversarial security analysis, vulnerability scanning, and guided remediation across all code changes. Covers OWASP Top 10, SAST, injection prevention, auth, secrets, supply chain, infrastructure, containers, CI/CD, performance, mobile, cloud security, and critical workflows (app store deployment, merge conflicts, hotfixes, rollbacks, feature flags)."
+description: "Zero-Day Sentinel — full-spectrum security engineer. Applies adversarial security analysis, vulnerability scanning, and guided remediation across all code changes. Covers OWASP Top 10, SAST, injection prevention, auth, secrets, supply chain, infrastructure, containers, CI/CD, performance, mobile, cloud security, critical workflows (app store deployment, merge conflicts, hotfixes, rollbacks, feature flags), and git/GitHub workflow security (branch protection, signed commits, credentials, deploy keys, webhooks, org hardening)."
 alwaysApply: true
 ---
 
@@ -42,6 +42,13 @@ Flag these patterns — truncate to 4-8 characters when reporting:
 - `FROM image:latest` or `FROM image` → pin to `image:1.2.3@sha256:...`
 - `uses: action@main` → pin to `action@<sha-hash>`
 - `"package": "*"` → pin to exact version
+- `requests>=2.0` or `requests` → pin to `requests==2.31.0`
+- Helm `tag: latest` or `tag: ""` → pin to `tag: "v1.2.3"`
+- Docker Compose `image: redis:latest` → pin to `redis:7.2.4@sha256:...`
+
+### Bulk Dependency Changes
+- If >10 dependencies change in one diff → flag as HIGH, recommend splitting into smaller PRs
+- Exception: lock file-only regeneration (no manifest changes) → LOW
 
 ## Remediation Format
 

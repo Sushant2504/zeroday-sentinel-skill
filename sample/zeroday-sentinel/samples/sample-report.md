@@ -11,16 +11,16 @@ This is an example of the output produced by the zeroday-sentinel skill.
 **Project Type:** Web App (API + Frontend)
 **Tech Stack:** Python (FastAPI), TypeScript (React), PostgreSQL, Docker, GitHub Actions
 **Scope:** 18 files changed in current branch vs main
-**Files Reviewed:** 23 (4 critical, 8 high risk)
-**Domains Analyzed:** Application, Web, API, Authentication, Database, Containers, CI/CD, Secrets, Performance, Critical Workflows, Git & GitHub
+**Files Reviewed:** 21 (4 critical, 7 high risk)
+**Domains Analyzed:** Application, Web, API, Authentication, Database, Containers, CI/CD, Secrets, Performance, Critical Workflows
 
 ### Summary
 
 | Severity | Count |
 |----------|-------|
 | CRITICAL | 2 |
-| HIGH | 6 |
-| MEDIUM | 5 |
+| HIGH | 5 |
+| MEDIUM | 4 |
 | LOW | 3 |
 
 ### Findings
@@ -592,86 +592,6 @@ Expected: Hotfix commit visible in develop branch history
 **Step 4 — Harden Further:**
 - Use GitHub branch protection rules to require hotfix merge-back
 - Set up Slack/email notification when hotfix branches are stale >24h
-
----
-
-**[HIGH] No Branch Protection on Main Branch**
-
-- **File:** `(repository settings)`
-- **Category:** `GitHub - Branch Protection Gap`
-- **Issue:** The `main` branch has no branch protection rules enabled. Direct pushes, force pushes, and merges without review are all permitted
-- **Impact:** Any contributor can push directly to main, bypassing code review and CI checks. A compromised account or malicious insider could push backdoored code without oversight
-- **Affected Roles:** DevOps, All
-
-**Remediation:**
-
-**Step 1 — Immediate Fix:**
-```bash
-gh api repos/{owner}/{repo}/branches/main/protection -X PUT \
-  -f "required_pull_request_reviews[required_approving_review_count]=1" \
-  -f "required_pull_request_reviews[dismiss_stale_reviews]=true" \
-  -f "required_status_checks[strict]=true" \
-  -f "required_status_checks[contexts][]=ci/tests" \
-  -f "enforce_admins=true" \
-  -f "allow_force_pushes=false" \
-  -f "allow_deletions=false"
-```
-
-**Step 2 — Verify:**
-```bash
-gh api repos/{owner}/{repo}/branches/main/protection --jq '.enforce_admins.enabled'
-# Should return: true
-```
-Expected: Branch protection enforced, direct pushes blocked
-
-**Step 3 — Prevent Recurrence:**
-- Add CODEOWNERS file for security-critical paths
-- Enable `Require review from Code Owners`
-
-**Step 4 — Harden Further:**
-- Require signed commits on main
-- Add required status checks for security scanning
-
----
-
-**[MEDIUM] Git Credential Helper Using Plaintext Storage**
-
-- **File:** `.gitconfig:3`
-- **Category:** `Git - Credential Storage`
-- **Issue:** Git credential helper is set to `store`, which saves credentials in plaintext at `~/.git-credentials`
-- **Impact:** Any process or user with file system access can read GitHub credentials (PATs, passwords) in plaintext
-- **Affected Roles:** All
-
-**Remediation:**
-
-**Step 1 — Immediate Fix:**
-```bash
-# Switch to secure credential helper
-git config --global credential.helper osxkeychain  # macOS
-# OR
-git config --global credential.helper libsecret    # Linux
-
-# Delete the plaintext credential file
-rm ~/.git-credentials
-```
-
-**Step 2 — Verify:**
-```bash
-git config --global credential.helper
-# Should NOT return "store"
-
-ls -la ~/.git-credentials 2>/dev/null
-# Should return "No such file or directory"
-```
-Expected: Secure credential helper configured, no plaintext credential file
-
-**Step 3 — Prevent Recurrence:**
-- Add credential helper check to team onboarding scripts
-- Document secure git setup in team playbook
-
-**Step 4 — Harden Further:**
-- Rotate any credentials that were stored in plaintext
-- Use SSH authentication instead of HTTPS with PATs
 
 ---
 
