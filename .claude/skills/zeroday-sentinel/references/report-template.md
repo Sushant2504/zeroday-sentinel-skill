@@ -260,3 +260,98 @@ Expected: {EXPECTED_RESULT}
 - `Secrets - Private Key`
 - `Secrets - Connection String`
 - `Secrets - Generic Secret`
+
+---
+
+## Groundwork-Enhanced Report Template
+
+When groundwork mode is active, use this extended template. All standard sections remain, with additional sections inserted.
+
+```markdown
+## Groundwork + Security Review
+
+**Scan Date:** {TIMESTAMP}
+**Scan Mode:** Full Project Audit (Groundwork Enhanced)
+**Project Type:** {Web App | API Service | Mobile App | Microservice | CLI Tool | Library | IaC | Mixed}
+**Tech Stack:** {detected languages, frameworks, and tools}
+**Groundwork Scope:** {files_read} files read, {functions_analyzed} functions analyzed, {endpoints_mapped} API endpoints mapped
+**Files Reviewed:** {TOTAL_COUNT} ({CRITICAL_COUNT} critical, {HIGH_COUNT} high risk)
+**Domains Analyzed:** {DOMAINS_LIST}
+
+### Architecture Overview
+{Component map, layer identification, trust boundaries, entry points — see code-analysis-checklist.md Agent A}
+
+### Code Patterns
+{Conventions detected, deviations found with security implications — see code-analysis-checklist.md Agent B}
+
+### API Surface
+{Complete endpoint table with auth/rate limit/validation coverage — see code-analysis-checklist.md Agent C}
+
+### Summary
+{Standard severity count table}
+
+### Findings
+{Standard findings format — each finding may include a **Groundwork Context** line explaining how codebase analysis informed the finding}
+
+### Documentation Correlation
+{Only if docs provided — correlation matrix, gap analysis, security doc gaps}
+
+### Cross-Project Overlap
+{Only if multiple projects — user story inventory, overlap matrix, shared vulnerability analysis}
+
+### Verification Summary
+{Verification report — total claims, verified count, corrections, failures}
+
+### Domains Not Analyzed
+{Standard domain skip list}
+
+### Security Posture
+{Standard posture summary — may reference architecture findings}
+```
+
+### Groundwork Finding Severity Guidance
+
+Groundwork-specific findings (architecture gaps, documentation gaps, code pattern deviations) have default severity ranges. They can be elevated when they directly enable or mask a security vulnerability found during the standard scan phases.
+
+| Finding Type | Default Severity | Elevation Criteria |
+|-------------|-----------------|-------------------|
+| Architecture trust boundary gap | MEDIUM | Elevate to HIGH if no security control exists at the boundary |
+| Missing component isolation | MEDIUM | Elevate to HIGH if shared state enables privilege escalation |
+| Convention deviation | LOW | Elevate to HIGH/CRITICAL if deviation is the direct cause of a vulnerability |
+| Logging sensitive data | HIGH | Already high — maintain |
+| Undocumented endpoint | LOW | Elevate to MEDIUM if endpoint handles sensitive data |
+| Missing auth on endpoint | HIGH | Already high — maintain |
+| Security documentation gap | LOW | Elevate to MEDIUM for auth model or incident response gaps |
+| Stale documentation | LOW | Elevate to MEDIUM if doc references removed security controls |
+| Cross-project shared vulnerability | Escalate +1 level | Systemic issue — always escalate |
+| Cross-project version inconsistency | MEDIUM | Elevate to HIGH if the older version has known CVEs |
+
+### Architecture Categories
+- `Architecture - Trust Boundary Gap`
+- `Architecture - Missing Component Isolation`
+- `Architecture - Circular Dependency`
+- `Architecture - Shared State Risk`
+
+### Code Pattern Categories
+- `Code Pattern - Convention Deviation`
+- `Code Pattern - Inconsistent Error Handling`
+- `Code Pattern - Missing Input Validation Pattern`
+- `Code Pattern - Logging Sensitive Data`
+
+### API Surface Categories
+- `API Surface - Undocumented Endpoint`
+- `API Surface - Missing Auth Requirement`
+- `API Surface - Inconsistent Validation`
+- `API Surface - Missing Rate Limiting`
+
+### Documentation Categories
+- `Documentation - Security Doc Gap`
+- `Documentation - Stale Documentation`
+- `Documentation - Missing Runbook`
+- `Documentation - Broken Reference`
+
+### Cross-Project Categories
+- `Cross-Project - Shared Vulnerability`
+- `Cross-Project - Version Inconsistency`
+- `Cross-Project - Divergent Security Posture`
+- `Cross-Project - Duplicate Implementation`

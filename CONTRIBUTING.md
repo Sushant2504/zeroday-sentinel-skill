@@ -115,6 +115,7 @@ Add your domain's categories to the **Category Taxonomy** section:
 
 ```markdown
 ### <Domain> Categories
+
 - `<Domain> - <Subcategory 1>`
 - `<Domain> - <Subcategory 2>`
 ```

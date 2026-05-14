@@ -13,6 +13,16 @@ When invoked (or auto-triggered), Zero-Day Sentinel:
 5. **Thinks adversarially** — models abuse scenarios, trust boundary crossings, privilege escalation
 6. **Provides remediation** — every finding includes a 4-step fix: Immediate Fix, Verify, Prevent, Harden
 
+In **groundwork mode** (opt-in), it additionally:
+
+7. **Maps architecture** — identifies component boundaries, trust boundaries, and execution flows
+8. **Analyzes code patterns** — catalogs conventions and flags security-relevant deviations
+9. **Enumerates API surface** — maps every endpoint with auth, rate limiting, and validation status
+10. **Correlates documentation** — identifies security documentation gaps and stale docs
+11. **Detects cross-project overlap** — finds shared vulnerabilities across multiple codebases
+12. **Verifies every claim** — mandatory verification gate confirms all facts against source files
+13. **Generates interactive HTML report** — single-file report with navigation, search, and filtering
+
 ## Supported Developer Roles
 
 | Role | Domains Covered |
@@ -26,6 +36,7 @@ When invoked (or auto-triggered), Zero-Day Sentinel:
 | **Performance Engineers** | Rate limiting, caching security, CDN, load balancers, connection pools, CSV/Excel injection |
 | **Release Engineers** | App store/Play Store deployment, release signing, staged rollouts, hotfixes, rollbacks, feature flags |
 | **Cloud Engineers** | AWS, GCP, Azure — IAM, serverless, storage, networking, container registries |
+| **Tech Leads / Architects** | Architecture mapping, code pattern analysis, documentation correlation, cross-project overlap (groundwork mode) |
 
 ## 17 Security Domains
 
@@ -63,6 +74,7 @@ cp -r .claude/skills/zeroday-sentinel /path/to/your/project/.claude/skills/
 cp -r .claude/skills/zeroday-sentinel ~/.claude/skills/
 ```
 
+
 ### Cursor
 
 
@@ -88,6 +100,15 @@ cp -r .cursor/rules /path/to/your/project/.cursor/
 ```
 
 **Auto-triggered:** The skill auto-activates when Claude detects security-relevant work — editing auth logic, adding dependencies, modifying Dockerfiles, changing CI/CD pipelines, etc.
+
+**Groundwork mode (deep codebase analysis):**
+```
+/zeroday-sentinel groundwork
+/zeroday-sentinel groundwork /path/to/project
+/zeroday-sentinel groundwork /path/to/project --docs-dir=/path/to/docs
+/zeroday-sentinel groundwork /path/to/project-a /path/to/project-b
+/zeroday-sentinel groundwork --focus=architecture
+```
 
 ### Cursor
 
@@ -127,11 +148,43 @@ Step 4 — Harden: [defense-in-depth]
 
 See [samples/sample-report.md](.claude/skills/zeroday-sentinel/samples/sample-report.md) for a full example.
 
+### Groundwork Mode
+
+Groundwork mode performs deep codebase analysis before security scanning. It reads every source file, maps architecture, catalogs code patterns, and enumerates the complete API surface. The analysis directly enhances security findings — architecture mapping reveals trust boundaries, code pattern baselines enable deviation-based vulnerability detection, and complete API enumeration ensures no endpoint is missed.
+
+**How groundwork feeds security:**
+
+| Groundwork Output | Security Enhancement |
+|-------------------|---------------------|
+| Architecture: trust boundaries | Automatic attack surface enumeration for adversarial testing |
+| Code patterns: conventions | Deviations flagged as potential vulnerabilities |
+| Code patterns: logging | Detect when logging patterns expose sensitive data |
+| API surface: endpoints | 100% endpoint coverage for security checks |
+| Git: hotspots | High-churn files elevated in risk priority |
+| Doc correlation: gaps | Missing security documentation reported as findings |
+| Cross-project: shared patterns | Same vulnerability across projects = systemic issue |
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--docs-dir=<path>` | Path to documentation directory. Enables correlation analysis. |
+| `--handbook=<path>` | Convenience alias for Ansible Engineering Handbook. Falls back to generic docs. |
+| `--focus=<area>` | Expand a specific section: `architecture`, `patterns`, `api`, `testing`, `devops`, `docs` |
+
+**Output:** Markdown report in conversation + interactive HTML report at `/tmp/groundwork-report.html`. The HTML report includes sidebar navigation, collapsible sections, keyword search, severity filtering, and dark/light mode.
+
+See [samples/sample-groundwork-report.md](.claude/skills/zeroday-sentinel/samples/sample-groundwork-report.md) for a full groundwork-enhanced example.
+
 ## File Structure
 
 ```
 .claude/skills/zeroday-sentinel/
-├── SKILL.md                              # Main skill definition (360+ lines)
+├── SKILL.md                              # Main skill definition (670+ lines)
+├── scripts/                              # Groundwork discovery scripts
+│   ├── detect-stack.sh                   # Language, framework, database detection
+│   ├── repo-stats.sh                     # Git statistics, hotspots, bus factor
+│   └── find-images.sh                    # Documentation image inventory
 ├── references/
 │   ├── web-security.md                   # OWASP, CSP, CORS, cookies, XSS, CSRF
 │   ├── api-security.md                   # REST, GraphQL, WebSocket, rate limiting
@@ -150,9 +203,18 @@ See [samples/sample-report.md](.claude/skills/zeroday-sentinel/samples/sample-re
 │   ├── critical-workflows.md          # App store deploy, merge conflicts, hotfixes, rollbacks
 │   ├── git-github-security.md         # Branch protection, signed commits, deploy keys, webhooks
 │   ├── remediation-playbooks.md        # Step-by-step fix guides (1000+ lines)
-│   └── report-template.md             # Output format, severity definitions
+│   ├── report-template.md             # Output format, severity definitions
+│   ├── file-reading-strategy.md        # Groundwork: what to read vs skip
+│   ├── tech-stack-patterns.md          # Groundwork: language/framework detection patterns
+│   ├── code-analysis-checklist.md      # Groundwork: 4-agent analysis checklist
+│   ├── correlation-guide.md            # Groundwork: doc-code correlation procedures
+│   ├── docs-analysis-checklist.md      # Groundwork: documentation quality framework
+│   └── verification-checklist.md       # Groundwork: claim verification procedures
+├── assets/
+│   └── report-template.html            # Interactive HTML report template
 └── samples/
-    └── sample-report.md                # Example output
+    ├── sample-report.md                # Security-only example output
+    └── sample-groundwork-report.md     # Groundwork-enhanced example output
 
 .cursor/rules/                          # Cursor-compatible replica
 ├── zeroday-sentinel.mdc               # Master rule (always apply)
@@ -177,9 +239,10 @@ See [samples/sample-report.md](.claude/skills/zeroday-sentinel/samples/sample-re
 
 The skill itself follows security best practices:
 
-- **Read-only tools** — `allowed-tools` restricts to `Read`, `Grep`, `Glob`, scoped `Bash` (git, curl, find), and `WebSearch`
+- **Read-only tools** — `allowed-tools` restricts to `Read`, `Grep`, `Glob`, scoped `Bash` (git, curl, find, scripts), and `WebSearch`
 - **No write access** — cannot modify files, push code, or execute arbitrary commands
-- **Scoped Bash** — only `git diff`, `git log`, `git status`, `find`, and `curl` to the OpenSSF Scorecard API
+- **Scoped Bash** — only `git diff`, `git log`, `git status`, `find`, `wc`, `sort`, `curl` to the OpenSSF Scorecard API, and `bash scripts/*` (groundwork discovery scripts)
+- **Read-only scripts** — groundwork scripts (`detect-stack.sh`, `repo-stats.sh`, `find-images.sh`) perform filesystem reads and git queries only — no writes, no network calls
 - **Secret redaction** — truncates found secrets to 4-8 characters in reports
 - **Input validation** — validates OpenSSF API URL components before constructing requests
 
