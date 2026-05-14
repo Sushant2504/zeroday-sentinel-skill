@@ -1,0 +1,57 @@
+---
+description: "Container and Kubernetes security rules — Dockerfile hardening, image pinning, non-root containers, K8s pod security, RBAC, network policies, resource limits, and Helm security."
+globs: ["**/Dockerfile*", "**/Containerfile*", "**/docker-compose*", "**/*.yaml", "**/*.yml", "**/k8s/**", "**/kubernetes/**", "**/deploy/**", "**/manifests/**", "**/kustomization*"]
+---
+
+# Container & Kubernetes Security
+
+## Dockerfile
+
+- **Pin** base images to specific versions: `FROM node:20.11.0-slim` (add `@sha256:` for production)
+- Add non-root user: `RUN addgroup -S app && adduser -S app -G app` then `USER app`
+- Use `COPY` not `ADD` for local files
+- **Never** put secrets in `ARG` or `ENV` — use BuildKit secrets: `RUN --mount=type=secret`
+- **Never** COPY `.env`, `*.pem`, `*.key` files — add to `.dockerignore`
+- Add `HEALTHCHECK` instruction
+- Use multi-stage builds — keep dev tools in build stage only
+- Clean package manager caches: `rm -rf /var/lib/apt/lists/*`
+
+## Kubernetes Pod Security
+
+Every workload should have this security context:
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+```
+
+- **Never** use `privileged: true` — use specific capabilities if needed
+- **Never** mount `hostPath` (especially `/var/run/docker.sock`)
+- **Never** use `hostNetwork`, `hostPID`, or `hostIPC`
+- Set resource limits on every container: `resources: { limits: { memory, cpu } }`
+- Set `automountServiceAccountToken: false` for pods that don't need K8s API access
+
+## RBAC
+
+- **Never** bind `cluster-admin` to application service accounts
+- **Never** use wildcard verbs, resources, or API groups (`["*"]`)
+- Use `Role` (namespaced) instead of `ClusterRole` when possible
+- Scope secrets access with `resourceNames`
+
+## Network
+
+- Create default-deny NetworkPolicy for every namespace
+- Add explicit ingress/egress rules for allowed traffic
+- Use `ClusterIP` with Ingress controller — avoid `LoadBalancer`/`NodePort` unless needed
+- Add TLS to all Ingress resources
+- Enable mTLS in service mesh (`mode: STRICT`)
+
+## Image Scanning
+
+Run in CI: `trivy image --severity HIGH,CRITICAL myapp:latest` and `hadolint Dockerfile`

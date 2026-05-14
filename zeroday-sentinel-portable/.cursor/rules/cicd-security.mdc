@@ -1,0 +1,65 @@
+---
+description: "CI/CD pipeline security rules — GitHub Actions permissions, action pinning, script injection prevention, secret handling, self-hosted runner risks, and build pipeline integrity."
+globs: ["**/.github/workflows/**", "**/Jenkinsfile*", "**/.tekton/**", "**/buildspec*", "**/.gitlab-ci*", "**/ci/**", "**/.circleci/**", "**/pipeline*"]
+---
+
+# CI/CD Pipeline Security
+
+## GitHub Actions Permissions
+
+- Set `permissions: read-all` at workflow level — grant writes per-job only
+- **Never** use `permissions: write-all` or omit permissions block
+
+## Action Pinning
+
+- Pin **all** actions to SHA hashes: `uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11`
+- **Never** use branch refs (`@main`, `@master`) or `@latest`
+- Use `pinact` to auto-pin, Dependabot for updates
+
+## Script Injection Prevention
+
+**Never** use `${{ github.event.* }}` directly in `run:` blocks — attacker-controlled values become shell injection:
+
+```yaml
+# VULNERABLE
+- run: echo "${{ github.event.pull_request.title }}"
+
+# FIXED — pass through env var
+- run: echo "$PR_TITLE"
+  env:
+    PR_TITLE: ${{ github.event.pull_request.title }}
+```
+
+This applies to: PR title/body, issue title/body, comment body, commit messages.
+
+## Dangerous Triggers
+
+- **Never** check out PR code in `pull_request_target` workflows — runs untrusted code with repo secrets
+- Use `pull_request` trigger for builds/tests, `pull_request_target` only for labeling/commenting
+- Add required reviewers to GitHub Environments for deployment workflows
+
+## Secret Handling
+
+- **Never** echo secrets: `echo ${{ secrets.* }}`
+- **Never** put secrets in outputs or artifact uploads
+- Scope secrets to step-level `env:`, not job-level
+- Use `::add-mask::` if a secret value might appear in logs
+- Use GitHub Environments with approval rules for production secrets
+
+## Self-Hosted Runners
+
+- **Never** use self-hosted runners on public repositories
+- Configure runners as ephemeral (`--ephemeral` flag)
+- Use environment-specific runner labels
+
+## Build Integrity
+
+- **Never** use `--no-verify`, `--skip-tests` in build scripts
+- Verify checksums for downloaded binaries: `sha256sum -c checksums.txt`
+- Always use HTTPS for downloads
+- Don't pass credentials as CLI arguments — use env vars or stdin
+- Disable `set -x` before credential operations
+
+## CI Linting
+
+Run: `actionlint .github/workflows/*.yml`

@@ -172,19 +172,47 @@ Groundwork mode performs deep codebase analysis before security scanning. It rea
 | `--handbook=<path>` | Convenience alias for Ansible Engineering Handbook. Falls back to generic docs. |
 | `--focus=<area>` | Expand a specific section: `architecture`, `patterns`, `api`, `testing`, `devops`, `docs` |
 
-**Output:** Markdown report in conversation + interactive HTML report at `/tmp/groundwork-report.html`. The HTML report includes sidebar navigation, collapsible sections, keyword search, severity filtering, and dark/light mode.
+**Output:** Markdown report in conversation + interactive HTML report at `/tmp/groundwork-report.html` + JSON data at `/tmp/groundwork-report.json`. The HTML report includes sidebar navigation, collapsible sections, keyword search, severity filtering, and dark/light mode.
 
 See [samples/sample-groundwork-report.md](.claude/skills/zeroday-sentinel/samples/sample-groundwork-report.md) for a full groundwork-enhanced example.
+
+### Live Dashboard
+
+The groundwork report can be served as a live dashboard at a local endpoint. The dashboard auto-refreshes when new scan data is written — re-running a scan instantly updates the open browser.
+
+**Start the dashboard:**
+```bash
+python3 .claude/skills/zeroday-sentinel/scripts/serve-dashboard.py
+```
+
+**Default URL:** `http://localhost:8450`
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--port PORT` | Port to serve on (default: 8450) |
+| `--report PATH` | Path to report JSON (default: `/tmp/groundwork-report.json`) |
+| `--no-open` | Don't auto-open browser on start |
+
+**How it works:**
+- The server watches `/tmp/groundwork-report.json` for file changes (every 2 seconds)
+- When the file changes (e.g., after a new scan), it pushes an event via Server-Sent Events
+- The browser receives the event and fetches updated data — no manual refresh needed
+- If no report data exists yet, the dashboard shows a "Waiting for scan..." placeholder
+
+**Requirements:** Python 3.6+ (stdlib only, no pip install needed)
 
 ## File Structure
 
 ```
 .claude/skills/zeroday-sentinel/
 ├── SKILL.md                              # Main skill definition (670+ lines)
-├── scripts/                              # Groundwork discovery scripts
+├── scripts/                              # Groundwork discovery & dashboard scripts
 │   ├── detect-stack.sh                   # Language, framework, database detection
 │   ├── repo-stats.sh                     # Git statistics, hotspots, bus factor
-│   └── find-images.sh                    # Documentation image inventory
+│   ├── find-images.sh                    # Documentation image inventory
+│   └── serve-dashboard.py               # Live dashboard server (Python stdlib)
 ├── references/
 │   ├── web-security.md                   # OWASP, CSP, CORS, cookies, XSS, CSRF
 │   ├── api-security.md                   # REST, GraphQL, WebSocket, rate limiting
@@ -211,7 +239,8 @@ See [samples/sample-groundwork-report.md](.claude/skills/zeroday-sentinel/sample
 │   ├── docs-analysis-checklist.md      # Groundwork: documentation quality framework
 │   └── verification-checklist.md       # Groundwork: claim verification procedures
 ├── assets/
-│   └── report-template.html            # Interactive HTML report template
+│   ├── report-template.html            # Static HTML report template
+│   └── dashboard-live.html             # Live dashboard (served by serve-dashboard.py)
 └── samples/
     ├── sample-report.md                # Security-only example output
     └── sample-groundwork-report.md     # Groundwork-enhanced example output
@@ -241,7 +270,7 @@ The skill itself follows security best practices:
 
 - **Read-only tools** — `allowed-tools` restricts to `Read`, `Grep`, `Glob`, scoped `Bash` (git, curl, find, scripts), and `WebSearch`
 - **No write access** — cannot modify files, push code, or execute arbitrary commands
-- **Scoped Bash** — only `git diff`, `git log`, `git status`, `find`, `wc`, `sort`, `curl` to the OpenSSF Scorecard API, and `bash scripts/*` (groundwork discovery scripts)
+- **Scoped Bash** — only `git diff`, `git log`, `git status`, `find`, `wc`, `sort`, `curl` to the OpenSSF Scorecard API, `bash scripts/*` (discovery scripts), and `python3 scripts/*` (dashboard server)
 - **Read-only scripts** — groundwork scripts (`detect-stack.sh`, `repo-stats.sh`, `find-images.sh`) perform filesystem reads and git queries only — no writes, no network calls
 - **Secret redaction** — truncates found secrets to 4-8 characters in reports
 - **Input validation** — validates OpenSSF API URL components before constructing requests

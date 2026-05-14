@@ -1,0 +1,57 @@
+---
+description: "Application-level SAST security rules — injection prevention, credential handling, error handling, and unsafe patterns for Go, Python, JavaScript/TypeScript, Java, and Shell scripts."
+globs: ["**/*.go", "**/*.py", "**/*.js", "**/*.ts", "**/*.jsx", "**/*.tsx", "**/*.java", "**/*.cs", "**/*.rb", "**/*.rs", "**/*.sh", "**/*.bash"]
+---
+
+# Application Security (SAST)
+
+## Injection Prevention (All Languages)
+
+- **SQL:** Always use parameterized queries. Never build SQL with string concatenation, f-strings, `fmt.Sprintf`, or template literals
+- **Command:** Never pass user input to `exec`, `system`, `popen`, or `exec.Command` as a string. Use array arguments
+- **Code execution:** Never use `eval()`, `exec()`, `compile()` with user input
+- **Deserialization:** Never deserialize untrusted data with `pickle`, `yaml.load()` (use `safe_load`), or `unserialize()`
+- **Template:** Never construct templates from user input. Use static template files with variable substitution
+- **LDAP:** Escape special characters in LDAP filters
+- **Regex:** Never pass unsanitized user input to `new RegExp()` or regex constructors (ReDoS risk)
+
+## Go Specific
+
+- Use `db.Query("... $1", arg)` not `fmt.Sprintf` for SQL
+- Use `crypto/rand` not `math/rand` for security-sensitive values
+- Remove `InsecureSkipVerify: true` in TLS configs
+- Handle all errors — never `_ = fn()` for functions with security implications
+- Don't expose `debug.Stack()` in HTTP responses
+
+## Python Specific
+
+- Use `subprocess.run(["cmd", arg], shell=False)` — never `shell=True` with variables
+- Use `yaml.safe_load()` not `yaml.load()`
+- Don't use `assert` for security checks (stripped with `python -O`)
+- Set `DEBUG = False` in production
+- Use `os.path.realpath()` + base path check for path traversal prevention
+
+## JavaScript/TypeScript Specific
+
+- Use `.textContent` not `.innerHTML` for user data
+- Never use `eval()`, `new Function()`, or `setTimeout(string)`
+- Guard against prototype pollution: validate input shapes before `Object.assign` or deep merge
+- Use `path.resolve()` + `startsWith(base)` check for path traversal
+- Never use `require(variable)` with user-controlled paths
+
+## Shell Script Specific
+
+- Always quote variables: `"$VAR"` not `$VAR`
+- Never `eval "$user_input"`
+- Never `curl ... | sh` — download, verify checksum, then execute
+- Use `mktemp` for temp files, not predictable paths
+- Use `chmod 750` not `chmod 777`
+- Start scripts with `set -euo pipefail`
+
+## Cross-Language
+
+- Never use base64 as "encryption" — it's encoding, not security
+- Don't suppress security linter warnings (`nosec`, `nolint:gosec`, `# noqa: S`) without documented justification
+- Never comment out auth checks — delete them or restore them
+- Use cryptographically secure random generators for tokens/keys
+- Use bcrypt/Argon2id for password hashing — never MD5/SHA1/SHA256

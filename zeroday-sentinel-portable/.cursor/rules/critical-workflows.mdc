@@ -1,0 +1,93 @@
+---
+description: "Critical workflow security rules — app store/Play Store deployment, merge conflict resolution, hotfix procedures, rollback safety, feature flag security, and pre-release security gates."
+globs: ["**/Fastfile", "**/Appfile", "**/Matchfile", "**/*.xcconfig", "**/fastlane/**", "**/release*", "**/deploy*", "**/hotfix*", "**/.releaserc*", "**/CHANGELOG*", "**/version*", "**/*rollback*", "**/*feature-flag*", "**/*feature_flag*", "**/*.keystore", "**/*.jks", "**/signing*", "**/*entitlements*"]
+---
+
+# Critical Workflow Security
+
+## Release & Deployment
+
+### App Store / Play Store
+- **Never** submit debug builds — verify `isDebuggable = false`, release signing, R8/ProGuard enabled
+- **Never** ship test/staging API endpoints — use build-time environment injection
+- **Never** include test credentials in release builds — grep for sandbox/test patterns before submission
+- **Never** commit keystores (`.keystore`, `.jks`) — add to `.gitignore`, store in CI secrets
+- Signing passwords must come from environment variables, not `build.gradle`
+- iOS: verify distribution certificate (not development), check provisioning profile expiry
+- iOS: include `PrivacyInfo.xcprivacy` when using required reason APIs
+- Strip debug logs from release: ProGuard rules for `Log.d`/`Log.v`, `--no-source-maps` for RN
+- Implement app attestation: Play Integrity API (Android), App Attest (iOS)
+
+### Staged Rollouts
+- Start at 1-5% → 25% → 50% → 100% with monitoring at each stage
+- Define rollback triggers: crash rate > 2x baseline, error rate > 5%, latency p99 > 2x
+- Set up monitoring dashboard for: crash-free rate, API errors, user reports
+
+## Merge Conflict Resolution
+
+### Security-Critical Conflict Zones
+Extra scrutiny required when conflicts occur in:
+- Auth middleware / route guards — ensure checks aren't dropped or duplicated
+- Input validation / sanitization — verify rules aren't lost via "accept theirs"
+- `.gitignore` — ensure secret patterns (`*.pem`, `*.key`, `.env*`) survive
+- Lock files — **never** manually edit; delete and regenerate, then review diff
+- Security headers (CSP, CORS) — merged policies may be overly permissive
+- Permission/RBAC definitions — merged roles may grant unintended access
+
+### Common Mistakes
+- **Never** accept "both" on auth middleware without reviewing merged logic end-to-end
+- **Never** accept "theirs" without checking that all validation from "ours" survives
+- **Never** regenerate lock files without reviewing the resulting diff for unexpected changes
+- **Always** run full test suite after conflict resolution — never assume "obvious" merges are correct
+
+## Hotfix & Emergency Deployment
+
+- **Never** use `--no-verify`, `[skip ci]`, or `git commit --no-verify` for production hotfixes
+- **Never** push directly to main without PR, even for hotfixes — require at least 1 reviewer
+- **Never** hardcode credentials as a "temporary" fix — use existing secret manager
+- **Always** merge hotfix back to all active branches (main, develop, release)
+- **Always** run smoke tests immediately after hotfix deployment
+- Track temporary security exceptions with expiry dates: `# nosec:expires=YYYY-MM-DD:reason=...`
+
+## Rollback Security
+
+### Database Rollbacks
+- **Always** write DOWN/rollback migration for every UP migration
+- For destructive ops (DROP COLUMN): use 3-phase pattern (add new → migrate data → drop old)
+- Test full migration chain and rollback in staging before production
+- Separate seed data from schema migrations
+
+### Blue-Green / Canary
+- Session format must be backward-compatible between old and new versions
+- API contracts must not break during mixed-version serving
+- Use expand-contract for database schema changes during rollouts
+- Invalidate CDN cache at deployment — version static assets with content hashes
+- Support N-1 auth token format during rollout
+
+### Rollback Verification Checklist
+After every rollback, verify: auth works, sessions valid, secrets valid, API endpoints respond, DB schema matches code, feature flags correct, webhooks/callbacks valid
+
+## Feature Flag Security
+
+- **Never** gate authentication or authorization behind feature flags — security checks must be unconditional
+- **Never** evaluate security-relevant flags on the client side — server-side only
+- Flag defaults must be secure/restrictive when evaluation fails — fail closed, not open
+- Audit and remove stale flags (>90 days) that gate security behavior
+- Log flag evaluations for security-relevant decisions
+
+## Pre-Release Security Gate
+
+Required checks before any production release:
+1. Secret scan (`detect-secrets`, `gitleaks`, `truffleHog`)
+2. Dependency audit (`npm audit`, `pip-audit`, `govulncheck`)
+3. SAST scan (`semgrep`, `gosec`, `bandit`)
+4. Container image scan (`trivy image`, `grype`)
+5. License compliance check
+6. SBOM generation (`syft`, `cyclonedx-cli`)
+
+### Release Artifact Security
+- Sign containers with cosign, binaries with GPG or Sigstore
+- Generate SLSA provenance attestation for release artifacts
+- **Never** commit signing keys to version control
+- Require 2+ reviewers for production deployments — include security-aware reviewer
+- Log all deployments: deployer, commit SHA, timestamp, environment
