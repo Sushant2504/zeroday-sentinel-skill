@@ -37,7 +37,9 @@ when_to_use: >
   vulnerability, reviewing PRs/commits that touch security-sensitive files,
   user asks to "analyze this codebase", "deep analysis", "understand this
   project", "map the architecture", "correlate with docs", "cross-project
-  analysis", "full groundwork", "code patterns", user says "groundwork", or
+  analysis", "full groundwork", "code patterns", user says "groundwork",
+  user says "web server", "start dashboard", "launch dashboard",
+  "serve the report", "open the dashboard", or
   review requests covering unfamiliar codebases.
 allowed-tools: [Read, Grep, Glob, Bash(git diff *), Bash(git log *), Bash(git rev-parse *), Bash(git status *), Bash(find . *), Bash(bash scripts/*), Bash(python3 scripts/*), Bash(wc *), Bash(sort *), Bash(curl -s https://api.securityscorecards.dev/*), WebSearch]
 ---
@@ -122,6 +124,48 @@ Each groundwork output directly enhances the security analysis:
 | `--focus=<area>` | Expand a specific section: `architecture`, `patterns`, `api`, `testing`, `devops`, `docs` |
 
 Without `--focus`, all areas get equal treatment.
+
+## Web Server Mode
+
+Web server mode launches the Zero-Day Sentinel live dashboard server, which serves the groundwork + security report as an auto-refreshing dashboard in the browser.
+
+### When Web Server Activates
+
+Web server mode is activated when:
+- The user explicitly requests it: `/zeroday-sentinel web server`, `--web-server` flag, or "start dashboard"
+- The user asks to "launch the dashboard", "open the dashboard", "serve the report", or "start the web server"
+- The user says "web server" in any context related to the sentinel
+
+### What It Does
+
+When activated, immediately run the dashboard server script:
+
+```bash
+python3 scripts/serve-dashboard.py
+```
+
+This starts the live dashboard at `http://localhost:8450` with:
+- Auto-refreshing report view that watches `/tmp/groundwork-report.json` for changes
+- Server-Sent Events (SSE) for real-time updates when report data changes
+- Auto-opens the browser to the dashboard URL
+
+### Web Server Arguments
+
+```
+/zeroday-sentinel web server [--port=<port>] [--report=<path>] [--no-open]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--port=<port>` | Port to serve on (default: 8450) |
+| `--report=<path>` | Path to report JSON file (default: `/tmp/groundwork-report.json`) |
+| `--no-open` | Don't auto-open the browser |
+
+Pass any flags directly to the script. For example:
+- `/zeroday-sentinel web server --port 9000` → `python3 scripts/serve-dashboard.py --port 9000`
+- `/zeroday-sentinel web server --no-open` → `python3 scripts/serve-dashboard.py --no-open`
+
+**Important:** Do NOT run any security scanning phases. Web server mode only starts the dashboard server and exits. No file analysis, no domain detection, no report generation.
 
 ## Adaptive Scope Detection
 
