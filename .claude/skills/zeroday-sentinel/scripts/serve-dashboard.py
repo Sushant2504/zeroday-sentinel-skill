@@ -11,12 +11,10 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
 import threading
 import time
 import webbrowser
-from functools import partial
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
@@ -73,7 +71,14 @@ def make_handler(report_path):
                 super().log_message(format, *args)
 
         def _cors_headers(self):
-            self.send_header("Access-Control-Allow-Origin", "*")
+            origin = self.headers.get("Origin")
+            allowed_origins = {
+                f"http://localhost:{self.server.server_port}",
+                f"http://127.0.0.1:{self.server.server_port}",
+            }
+            if origin in allowed_origins:
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Vary", "Origin")
             self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
 

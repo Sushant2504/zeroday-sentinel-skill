@@ -738,6 +738,38 @@ function applyFilters() {
   });
 }
 
+function sanitizeHtml(untrustedHtml) {
+  var template = document.createElement('template');
+  template.innerHTML = String(untrustedHtml || '');
+
+  template.content.querySelectorAll('script, iframe, object, embed, link, meta').forEach(function(node) {
+    node.remove();
+  });
+
+  template.content.querySelectorAll('*').forEach(function(node) {
+    Array.from(node.attributes).forEach(function(attr) {
+      var name = attr.name.toLowerCase();
+      var value = attr.value;
+
+      if (name.startsWith('on')) {
+        node.removeAttribute(attr.name);
+        return;
+      }
+
+      if ((name === 'href' || name === 'src' || name === 'xlink:href') && /^\s*javascript:/i.test(value)) {
+        node.removeAttribute(attr.name);
+        return;
+      }
+
+      if (name === 'style') {
+        node.removeAttribute(attr.name);
+      }
+    });
+  });
+
+  return template.innerHTML;
+}
+
 // Scroll spy
 function updateScrollSpy() {
   var current = '';
@@ -834,8 +866,8 @@ function renderReport(data) {
   // Metadata
   document.getElementById('sidebarTitle').textContent = data.project_name || 'Zero-Day Sentinel';
   document.getElementById('sidebarDate').textContent = data.scan_date || '';
-  document.getElementById('topMeta').innerHTML =
-    (data.scan_mode || 'Live') + ' &middot; ' + (data.tech_stack || 'Auto-refreshing');
+  document.getElementById('topMeta').textContent =
+    (data.scan_mode || 'Live') + ' · ' + (data.tech_stack || 'Auto-refreshing');
   document.title = (data.project_name || 'Zero-Day Sentinel') + ' — Live Dashboard';
 
   // Summary cards
@@ -862,9 +894,13 @@ function renderReport(data) {
       for (var key in sectionMap) {
         var el = document.getElementById(sectionMap[key]);
         if (el && data.sections[key] != null) {
-          el.innerHTML = data.sections[key];
+          el.style.color = '';
+          el.style.fontStyle = '';
+          el.innerHTML = sanitizeHtml(data.sections[key]);
         } else if (el && !data.sections[key]) {
-          el.innerHTML = '<p style="color:var(--text-muted);font-style:italic;">No data for this section.</p>';
+          el.textContent = 'No data for this section.';
+          el.style.color = 'var(--text-muted)';
+          el.style.fontStyle = 'italic';
         }
       }
 
